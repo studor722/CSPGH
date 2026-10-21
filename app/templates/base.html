@@ -3,35 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Vitalis · Global Health & Life Expectancy Platform{% endblock %}</title>
+    <title>{% block title %}Global Health Data Platform · Lab 1{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-primary: #0a0d14;
             --bg-secondary: #121824;
             --bg-card: rgba(22, 30, 46, 0.7);
-            --bg-card-hover: rgba(30, 41, 63, 0.85);
             --border-glass: rgba(255, 255, 255, 0.08);
-            --border-glow: rgba(56, 189, 248, 0.25);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
             --accent-cyan: #06b6d4;
-            --accent-teal: #14b8a6;
             --accent-emerald: #10b981;
-            --accent-rose: #f43f5e;
-            --accent-amber: #f59e0b;
-            --accent-violet: #8b5cf6;
-            --gradient-primary: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #8b5cf6 100%);
-            --gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
-            --shadow-glow: 0 10px 30px -10px rgba(6, 182, 212, 0.3);
-            --radius-sm: 8px;
-            --radius-md: 14px;
-            --radius-lg: 20px;
-            --radius-full: 9999px;
-            --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius-md: 12px;
+            --radius-lg: 18px;
         }
 
         * {
@@ -47,90 +35,51 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            overflow-x: hidden;
             background-image: 
-                radial-gradient(at 10% 10%, rgba(6, 182, 212, 0.12) 0px, transparent 50%),
-                radial-gradient(at 90% 20%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
-                radial-gradient(at 50% 90%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+                radial-gradient(at 10% 10%, rgba(6, 182, 212, 0.10) 0px, transparent 50%),
+                radial-gradient(at 90% 20%, rgba(59, 130, 246, 0.10) 0px, transparent 50%);
             background-attachment: fixed;
         }
 
-        h1, h2, h3, h4, .brand-font {
-            font-family: 'Outfit', sans-serif;
-            letter-spacing: -0.02em;
-        }
-
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        /* Glass Header */
         header {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(10, 13, 20, 0.75);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            background: rgba(10, 13, 20, 0.8);
+            backdrop-filter: blur(14px);
             border-bottom: 1px solid var(--border-glass);
-            padding: 0.85rem 2rem;
+            padding: 1rem 2rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
-        .logo-wrap {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .logo-badge {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-md);
-            background: var(--gradient-primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: var(--shadow-glow);
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: #fff;
-        }
-
         .logo-text {
-            font-size: 1.35rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
             font-weight: 700;
-            background: linear-gradient(120deg, #ffffff 40%, #93c5fd 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #fff;
         }
 
         .logo-sub {
             font-size: 0.75rem;
             color: var(--text-muted);
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
         }
 
         nav {
             display: flex;
-            gap: 1.5rem;
+            gap: 1.25rem;
             align-items: center;
         }
 
         .nav-link {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 500;
             color: var(--text-secondary);
-            padding: 0.5rem 1rem;
-            border-radius: var(--radius-sm);
-            transition: var(--transition-smooth);
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
+            text-decoration: none;
+            padding: 0.5rem 0.85rem;
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
 
         .nav-link:hover, .nav-link.active {
@@ -138,127 +87,56 @@
             background: rgba(255, 255, 255, 0.06);
         }
 
-        .nav-cta {
-            background: linear-gradient(135deg, #06b6d4, #3b82f6);
-            color: #ffffff !important;
-            box-shadow: var(--shadow-glow);
-        }
-
-        .nav-cta:hover {
-            opacity: 0.92;
-            transform: translateY(-1px);
-        }
-
         main {
             flex: 1;
             padding: 2.5rem 2rem;
-            max-width: 1280px;
+            max-width: 1200px;
             margin: 0 auto;
             width: 100%;
         }
 
-        /* Glass Cards */
         .glass-card {
             background: var(--bg-card);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: 1px solid var(--border-glass);
             border-radius: var(--radius-lg);
             padding: 2rem;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            transition: var(--transition-smooth);
-        }
-
-        .glass-card:hover {
-            border-color: var(--border-glow);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
         }
 
         footer {
             border-top: 1px solid var(--border-glass);
-            padding: 2rem;
+            padding: 1.5rem;
             background: rgba(10, 13, 20, 0.9);
             text-align: center;
             font-size: 0.85rem;
             color: var(--text-muted);
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            align-items: center;
         }
 
-        .footer-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            padding: 0.35rem 0.85rem;
-            border-radius: var(--radius-full);
-            font-size: 0.78rem;
-            color: var(--text-secondary);
-        }
-
-        /* Button Utilities */
         .btn {
-            font-family: inherit;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 0.5rem;
             font-weight: 600;
-            padding: 0.75rem 1.5rem;
+            padding: 0.7rem 1.4rem;
             border-radius: var(--radius-md);
             cursor: pointer;
-            transition: var(--transition-smooth);
             border: none;
-            outline: none;
+            background: linear-gradient(135deg, #06b6d4, #3b82f6);
+            color: #fff;
             text-decoration: none;
         }
-
-        .btn-primary {
-            background: var(--gradient-primary);
-            color: #fff;
-            box-shadow: var(--shadow-glow);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(6, 182, 212, 0.45);
-        }
-
-        .btn-outline {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-glass);
-            color: var(--text-primary);
-        }
-
-        .btn-outline:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
     </style>
-    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header>
-        <div class="logo-wrap">
-            <div class="logo-badge">V</div>
-            <div>
-                <a href="/calculator" class="logo-text">Vitalis Data</a>
-                <div class="logo-sub">Global Health & Longevity Analytics</div>
-            </div>
+        <div>
+            <a href="/observations" class="logo-text">Global Health Data Platform</a>
+            <div class="logo-sub">Lab 1 · Topic, Environment, Architecture & Database</div>
         </div>
         <nav>
-            <a href="/calculator" class="nav-link {% if active_page == 'calculator' %}active{% endif %}">
-                <span>⚡</span> Life Expectancy Calculator
-            </a>
-            <a href="/observations" class="nav-link {% if active_page == 'observations' %}active{% endif %}">
-                <span>📊</span> Data Platform
-            </a>
-            <a href="/docs" target="_blank" class="nav-link">
-                <span>📖</span> Swagger API
-            </a>
-            <a href="/calculator" class="nav-link nav-cta">Launch Calculator →</a>
+            <a href="/observations" class="nav-link active">📊 Observations Table</a>
+            <a href="/docs" target="_blank" class="nav-link">📖 Swagger Docs</a>
         </nav>
     </header>
 
@@ -267,13 +145,8 @@
     </main>
 
     <footer>
-        <div class="footer-badge">
-            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent-emerald);"></span>
-            Global Health Data Platform · Lab 1 · PostgreSQL 17 + FastAPI
-        </div>
-        <p>Data sources: WHO Global Health Observatory, World Bank Open Data & Our World in Data</p>
+        <p>Global Health Data Platform · Lab 1 · Student: <strong>STANICHEVICI R.R. TUDOR (AISRGH)</strong></p>
+        <p style="margin-top:0.25rem;">Sources: WHO Global Health Observatory, World Bank Open Data & Our World in Data</p>
     </footer>
-
-    {% block extra_scripts %}{% endblock %}
 </body>
 </html>
