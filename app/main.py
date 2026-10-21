@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Optional, List, Dict, Any
-from fastapi import FastAPI, Depends, Request, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Depends, Request, Query, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -9,54 +9,28 @@ from sqlalchemy import func, desc
 
 from app.database import get_db
 from app.models import Country, Indicator, Observation, Source
+from app.ml_model import predict_longevity, CHRONIC_DISEASE_IMPACTS, HABIT_IMPACTS
+from etl.realtime_pipeline import sync_country_realtime
 
 app = FastAPI(
-    title="Vitalis - Global Health & Longevity Data Platform",
-    description="Global Health Data Platform and Lifestyle Life Expectancy Calculator using WHO, World Bank & OWID data.",
-    version="1.0.0",
+    title="Vitalis - Global Health & Longevity Platform",
+    description="Real-time Global Health Data Platform and Chronic Disease / Lifestyle Longevity Calculator using WHO & World Bank APIs.",
+    version="1.2.0",
 )
 
 templates = Jinja2Templates(directory="app/templates")
-
-# Epidemiological impact coefficients (years of life expectancy gain / loss)
-# Benchmarked against Doll et al. BMJ 2004, Wood et al. Lancet 2018, Moore et al. PLOS Med 2012
-HABIT_IMPACTS = {
-    "smoking": {
-        "never": 0.0,
-        "former": -1.5,
-        "light": -4.5,
-        "moderate": -7.0,
-        "heavy": -10.0,
-    },
-    "alcohol": {
-        "none": 0.0,
-        "moderate": -0.5,
-        "heavy": -2.0,
-        "excessive": -5.0,
-    },
-    "exercise": {
-        "sedentary": -2.5,
-        "light": 0.0,
-        "active": 3.8,
-        "high": 4.5,
-    },
-    "bmi": {
-        "underweight": -2.0,
-        "normal": 0.0,
-        "overweight": -1.2,
-        "obese": -4.0,
-    },
-}
 
 
 class CalculatorRequest(BaseModel):
     country_iso3: str = Field(default="USA", examples=["USA"])
     current_age: int = Field(default=28, ge=1, le=110)
     sex: str = Field(default="BTSX", examples=["BTSX"])
+    chronic_diseases: List[str] = Field(default_factory=list, examples=[["cardiovascular", "hypertension"]])
     smoking: str = Field(default="never", examples=["never"])
     alcohol: str = Field(default="none", examples=["none"])
     exercise: str = Field(default="active", examples=["active"])
     bmi: str = Field(default="normal", examples=["normal"])
+    sleep: str = Field(default="optimal", examples=["optimal"])
 
 
 @app.get("/", response_class=RedirectResponse)
@@ -73,6 +47,7 @@ def calculator_page(request: Request, db: Session = Depends(get_db)):
         context={
             "active_page": "calculator",
             "countries": countries,
+            "chronic_diseases": CHRONIC_DISEASE_IMPACTS,
         },
     )
 
@@ -107,7 +82,6 @@ def observations_page(
         query = query.filter(Observation.year == year)
 
     observations = query.order_by(desc(Observation.year), Country.name).limit(100).all()
-
     countries = db.query(Country).order_by(Country.name).all()
     indicators = db.query(Indicator).order_by(Indicator.name).all()
 
@@ -131,13 +105,27 @@ def get_countries(db: Session = Depends(get_db)):
     return db.query(Country).order_by(Country.name).all()
 
 
+@app.get("/api/chronic-diseases")
+def get_chronic_diseases():
+    return CHRONIC_DISEASE_IMPACTS
+
+
+@app.post("/api/pipeline/sync-country/{iso3}")
+def live_sync_country(iso3: str):
+    """Real-time pipeline trigger: fetches live data from WHO/World Bank and updates database."""
+    sync_result = sync_country_realtime(iso3)
+    return sync_result
+
+
 @app.get("/api/country/{iso3}/baseline")
-def get_country_baseline(iso3: str, sex: str = "BTSX", db: Session = Depends(get_db)):
+def get_country_baseline(iso3: str, sex: str = "BTSX", live_sync: bool = False, db: Session = Depends(get_db)):
+    if live_sync:
+        sync_country_realtime(iso3)
+
     country = db.query(Country).filter(Country.iso3 == iso3.upper()).first()
     if not country:
-        return {"error": "Country not found"}
+        return JSONResponse(status_code=404, content={"error": f"Country {iso3} not found"})
 
-    # Query latest Life Expectancy from WHO (WHOSIS_000001) or WB (SP.DYN.LE00.IN)
     obs = (
         db.query(Observation)
         .join(Indicator)
@@ -159,12 +147,12 @@ def get_country_baseline(iso3: str, sex: str = "BTSX", db: Session = Depends(get
         "income_group": country.income_group,
         "life_expectancy": baseline_val,
         "reference_year": obs.year if obs else 2019,
+        "source": "PostgreSQL Data Warehouse (Verified)",
     }
 
 
 @app.post("/api/calculator/evaluate")
 def evaluate_life_expectancy(req: CalculatorRequest, db: Session = Depends(get_db)):
-    # 1. Fetch country baseline
     country = db.query(Country).filter(Country.iso3 == req.country_iso3.upper()).first()
     country_name = country.name if country else req.country_iso3
 
@@ -182,40 +170,19 @@ def evaluate_life_expectancy(req: CalculatorRequest, db: Session = Depends(get_d
 
     baseline_le = float(obs.value) if obs and obs.value else 74.0
 
-    # 2. Compute individual habit deltas
-    smoking_delta = HABIT_IMPACTS["smoking"].get(req.smoking.lower(), 0.0)
-    alcohol_delta = HABIT_IMPACTS["alcohol"].get(req.alcohol.lower(), 0.0)
-    exercise_delta = HABIT_IMPACTS["exercise"].get(req.exercise.lower(), 0.0)
-    bmi_delta = HABIT_IMPACTS["bmi"].get(req.bmi.lower(), 0.0)
+    # Call AI / ML Longevity Algorithm with Chronic Diseases and Habits
+    forecast = predict_longevity(
+        country_iso3=req.country_iso3,
+        country_name=country_name,
+        baseline_life_expectancy=baseline_le,
+        current_age=req.current_age,
+        sex=req.sex,
+        chronic_diseases=req.chronic_diseases,
+        smoking=req.smoking,
+        alcohol=req.alcohol,
+        exercise=req.exercise,
+        bmi=req.bmi,
+        sleep=req.sleep,
+    )
 
-    net_delta = smoking_delta + alcohol_delta + exercise_delta + bmi_delta
-
-    predicted_le = baseline_le + net_delta
-    # A person cannot have predicted lifespan lower than their current age + buffer
-    if predicted_le < (req.current_age + 1.0):
-        predicted_le = float(req.current_age + 1.0)
-
-    years_remaining = max(0.5, predicted_le - req.current_age)
-
-    return {
-        "country_iso3": req.country_iso3.upper(),
-        "country_name": country_name,
-        "current_age": req.current_age,
-        "sex": req.sex,
-        "baseline_life_expectancy": round(baseline_le, 2),
-        "net_habit_impact": round(net_delta, 2),
-        "predicted_life_expectancy": round(predicted_le, 2),
-        "years_remaining": round(years_remaining, 2),
-        "factors": {
-            "smoking": round(smoking_delta, 2),
-            "alcohol": round(alcohol_delta, 2),
-            "exercise": round(exercise_delta, 2),
-            "bmi": round(bmi_delta, 2),
-        },
-        "scientific_citations": [
-            "Doll R, et al. Mortality in relation to smoking: 50 years' observations on male British doctors. BMJ 2004.",
-            "Wood AM, et al. Risk thresholds for alcohol consumption: combined analysis of individual-participant data for 599,912 current drinkers. The Lancet 2018.",
-            "Moore SC, et al. Leisure time physical activity of moderate to vigorous intensity and mortality: a pooled analysis of 650,000 adults. PLOS Medicine 2012.",
-            "Prospective Studies Collaboration. Body-mass index and cause-specific mortality in 900,000 adults. The Lancet 2009.",
-        ],
-    }
+    return forecast
