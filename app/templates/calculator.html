@@ -234,6 +234,86 @@
     .impact-pos { color: var(--accent-emerald); }
     .impact-zero { color: var(--text-muted); }
 
+    /* 3D Globe Styles */
+    .globe-stage {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        margin: 1rem auto 1.5rem auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        user-select: none;
+    }
+
+    .globe-canvas-wrap {
+        position: relative;
+        width: 460px;
+        height: 460px;
+        max-width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #globeCanvas {
+        cursor: grab;
+        border-radius: 50%;
+        box-shadow: 0 0 60px rgba(6, 182, 212, 0.25);
+    }
+
+    #globeCanvas:active {
+        cursor: grabbing;
+    }
+
+    .globe-halo {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        border-radius: 50%;
+        pointer-events: none;
+        background: radial-gradient(circle, transparent 65%, rgba(6, 182, 212, 0.15) 88%, rgba(6, 182, 212, 0.35) 100%);
+    }
+
+    .globe-tooltip {
+        position: absolute;
+        display: none;
+        pointer-events: none;
+        z-index: 1000;
+        background: rgba(15, 23, 42, 0.94);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(56, 189, 248, 0.5);
+        padding: 0.75rem 1.1rem;
+        border-radius: 14px;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+        color: #fff;
+        min-width: 180px;
+        transform: translate(-50%, -125%);
+        transition: opacity 0.15s ease;
+    }
+
+    .globe-legend {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        margin-top: 0.85rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .legend-color {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
     /* Results */
     .result-hero {
         text-align: center;
@@ -305,20 +385,50 @@
 
     <!-- STEP 1: Country & Demographics -->
     <div class="glass-card step-content active" id="step1">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h2 style="font-size: 1.4rem;">Step 1: Sovereign Demographics</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+                <h2 style="font-size: 1.4rem;">Step 1: Explore & Select Country</h2>
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.25rem;">
+                    Spin the 3D globe and hover over any nation to inspect its official life expectancy from the database.
+                </p>
+            </div>
             <button class="btn btn-outline" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="triggerLiveSync()">
                 ⚡ Live Sync from WHO/WB
             </button>
         </div>
-        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.35rem;">
-            Select your country of residence to load the latest official life expectancy benchmarked by WHO and World Bank APIs.
-        </p>
+
+        <!-- 3D Globe Component -->
+        <div class="globe-stage">
+            <div class="globe-canvas-wrap">
+                <canvas id="globeCanvas" width="460" height="460"></canvas>
+                <div class="globe-halo"></div>
+                <div id="globeTooltip" class="globe-tooltip">
+                    <div id="ttCountryName" style="font-weight:700; font-size:0.95rem; margin-bottom:0.2rem;">Country</div>
+                    <div style="font-size:0.78rem; color:var(--text-muted);" id="ttRegion">Region</div>
+                    <div style="margin-top:0.4rem; display:flex; align-items:baseline; gap:0.3rem;">
+                        <span style="font-family:'Outfit', sans-serif; font-size:1.4rem; font-weight:800; color:#38bdf8;" id="ttLifeExp">--</span>
+                        <span style="font-size:0.75rem; color:var(--text-muted);">years</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:0.3rem; letter-spacing:0.04em;">✦ Click to select</div>
+                </div>
+            </div>
+
+            <!-- Globe Legend -->
+            <div class="globe-legend">
+                <div class="legend-item"><span class="legend-color" style="background:#06b6d4;"></span> 80+ yrs</div>
+                <div class="legend-item"><span class="legend-color" style="background:#3b82f6;"></span> 75 – 79.9 yrs</div>
+                <div class="legend-item"><span class="legend-color" style="background:#f59e0b;"></span> 70 – 74.9 yrs</div>
+                <div class="legend-item"><span class="legend-color" style="background:#f43f5e;"></span> &lt; 70 yrs</div>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.4rem;">
+                💡 Tip: Click and drag to rotate the globe · Scroll or pinch to interact
+            </div>
+        </div>
 
         <div class="form-grid">
             <div class="form-group full-width">
-                <label for="countrySelect">Country of Residence</label>
-                <select id="countrySelect" onchange="onCountryChanged()">
+                <label for="countrySelect">Selected Country (Synced with Globe)</label>
+                <select id="countrySelect" onchange="onCountryDropdownSelected()">
                     {% for c in countries %}
                     <option value="{{ c.iso3 }}" {% if c.iso3 == 'ROU' %}selected{% elif not selected and c.iso3 == 'USA' %}selected{% endif %}>
                         {{ c.name }} ({{ c.iso3 }})
@@ -578,6 +688,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/d3.min.js"></script>
+<script src="/static/topojson-client.min.js"></script>
 <script>
     let currentStep = 1;
     let selectedDiseases = new Set();
@@ -589,6 +701,237 @@
         sleep: 'optimal'
     };
     let currentCountryBaseline = 75.3;
+
+    // 3D Globe Implementation
+    let globeStats = {};
+    let worldFeatures = [];
+    let canvas, ctx, projection, pathGenerator;
+    let rotation = [25, -20];
+    let isDragging = false;
+    let dragStart = [0, 0];
+    let startRotation = [0, 0];
+    let autoSpin = true;
+    let hoveredCountry = null;
+    let selectedCountryFeature = null;
+    const globeRadius = 205;
+
+    async function initGlobe() {
+        canvas = document.getElementById('globeCanvas');
+        if (!canvas) return;
+        ctx = canvas.getContext('2d');
+
+        projection = d3.geoOrthographic()
+            .scale(globeRadius)
+            .translate([canvas.width / 2, canvas.height / 2])
+            .clipAngle(90)
+            .precision(0.3);
+
+        pathGenerator = d3.geoPath(projection, ctx);
+
+        try {
+            const [worldData, statsData] = await Promise.all([
+                d3.json('/static/world-110m.json'),
+                d3.json('/api/globe/countries-stats')
+            ]);
+            globeStats = statsData || {};
+            worldFeatures = topojson.feature(worldData, worldData.objects.countries).features;
+
+            worldFeatures.forEach(f => {
+                f.stats = globeStats[f.id] || globeStats[f.properties?.name] || null;
+            });
+
+            const selIso3 = document.getElementById('countrySelect').value || 'ROU';
+            selectCountryByIso3(selIso3, false);
+
+            setupGlobeEvents();
+            animateGlobe();
+        } catch (err) {
+            console.error('Failed to initialize 3D Globe:', err);
+        }
+    }
+
+    function getLifeExpColor(val, isHover, isSel) {
+        if (isSel) return '#38bdf8';
+        if (isHover) return '#7dd3fc';
+        if (!val) return '#1e293b';
+        if (val >= 80) return '#06b6d4';
+        if (val >= 75) return '#3b82f6';
+        if (val >= 70) return '#f59e0b';
+        return '#f43f5e';
+    }
+
+    function renderGlobe() {
+        if (!ctx || !projection) return;
+        const w = canvas.width;
+        const h = canvas.height;
+
+        projection.rotate(rotation);
+        ctx.clearRect(0, 0, w, h);
+
+        // 1. Deep Ocean Sphere
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, globeRadius, 0, 2 * Math.PI);
+        const oceanGrad = ctx.createRadialGradient(w/2 - 40, h/2 - 40, 40, w/2, h/2, globeRadius);
+        oceanGrad.addColorStop(0, '#0f172a');
+        oceanGrad.addColorStop(1, '#070b14');
+        ctx.fillStyle = oceanGrad;
+        ctx.fill();
+
+        // 2. Countries
+        worldFeatures.forEach(feature => {
+            const isHover = (hoveredCountry && hoveredCountry.id === feature.id);
+            const isSel = (selectedCountryFeature && selectedCountryFeature.id === feature.id);
+            const val = feature.stats ? feature.stats.life_expectancy : null;
+
+            ctx.beginPath();
+            pathGenerator(feature);
+            ctx.fillStyle = getLifeExpColor(val, isHover, isSel);
+            ctx.fill();
+
+            ctx.strokeStyle = isSel ? '#ffffff' : (isHover ? '#38bdf8' : 'rgba(255, 255, 255, 0.12)');
+            ctx.lineWidth = isSel ? 2 : (isHover ? 1.5 : 0.6);
+            ctx.stroke();
+        });
+
+        // 3. Globe Edge Highlight
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, globeRadius, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    function animateGlobe() {
+        if (autoSpin && !isDragging) {
+            rotation[0] += 0.2;
+            renderGlobe();
+        }
+        requestAnimationFrame(animateGlobe);
+    }
+
+    function setupGlobeEvents() {
+        const tooltip = document.getElementById('globeTooltip');
+
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true;
+            autoSpin = false;
+            dragStart = [e.clientX, e.clientY];
+            startRotation = [rotation[0], rotation[1]];
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (isDragging) {
+                const dx = e.clientX - dragStart[0];
+                const dy = e.clientY - dragStart[1];
+                rotation[0] = startRotation[0] + dx * 0.4;
+                rotation[1] = Math.max(-80, Math.min(80, startRotation[1] - dy * 0.4));
+                renderGlobe();
+                tooltip.style.display = 'none';
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (mouseX < 0 || mouseX > canvas.width || mouseY < 0 || mouseY > canvas.height) {
+                if (hoveredCountry) {
+                    hoveredCountry = null;
+                    renderGlobe();
+                }
+                tooltip.style.display = 'none';
+                return;
+            }
+
+            const geoCoord = projection.invert([mouseX, mouseY]);
+            if (geoCoord && !isNaN(geoCoord[0])) {
+                let found = null;
+                for (let f of worldFeatures) {
+                    if (d3.geoContains(f, geoCoord)) {
+                        found = f;
+                        break;
+                    }
+                }
+
+                if (found !== hoveredCountry) {
+                    hoveredCountry = found;
+                    renderGlobe();
+                }
+
+                if (found && found.stats) {
+                    document.getElementById('ttCountryName').innerText = `${found.stats.name} (${found.stats.iso3})`;
+                    document.getElementById('ttRegion').innerText = `${found.stats.region || 'Global'} · ${found.stats.income_group || ''}`;
+                    document.getElementById('ttLifeExp').innerText = found.stats.life_expectancy.toFixed(1);
+                    
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${mouseX}px`;
+                    tooltip.style.top = `${mouseY}px`;
+                } else if (found) {
+                    document.getElementById('ttCountryName').innerText = found.properties?.name || 'Unknown';
+                    document.getElementById('ttRegion').innerText = 'Data available';
+                    document.getElementById('ttLifeExp').innerText = '--';
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${mouseX}px`;
+                    tooltip.style.top = `${mouseY}px`;
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            } else {
+                if (hoveredCountry) {
+                    hoveredCountry = null;
+                    renderGlobe();
+                }
+                tooltip.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                setTimeout(() => { if (!isDragging) autoSpin = true; }, 3000);
+            }
+        });
+
+        canvas.addEventListener('click', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const geoCoord = projection.invert([mouseX, mouseY]);
+
+            if (geoCoord && !isNaN(geoCoord[0])) {
+                for (let f of worldFeatures) {
+                    if (d3.geoContains(f, geoCoord)) {
+                        if (f.stats && f.stats.iso3) {
+                            selectCountryByIso3(f.stats.iso3, true);
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    function selectCountryByIso3(iso3, centerGlobe) {
+        const select = document.getElementById('countrySelect');
+        if (select) select.value = iso3;
+
+        selectedCountryFeature = worldFeatures.find(f => (f.stats && f.stats.iso3 === iso3));
+
+        if (centerGlobe && selectedCountryFeature) {
+            const centroid = d3.geoCentroid(selectedCountryFeature);
+            if (centroid && !isNaN(centroid[0])) {
+                rotation = [-centroid[0], -centroid[1]];
+            }
+        }
+
+        renderGlobe();
+        onCountryChanged();
+    }
+
+    function onCountryDropdownSelected() {
+        const iso3 = document.getElementById('countrySelect').value;
+        selectCountryByIso3(iso3, true);
+    }
 
     function goToStep(step) {
         currentStep = step;
@@ -715,7 +1058,6 @@
         document.getElementById('remainingLifeText').innerText = 
             `Approximately ${data.years_remaining.toFixed(1)} years remaining based on your current age of ${data.current_age}.`;
 
-        // Render SHAP waterfall table
         const container = document.getElementById('breakdownContainer');
         container.innerHTML = '';
 
@@ -745,7 +1087,6 @@
             container.appendChild(row);
         });
 
-        // Interventions
         const recoveryBox = document.getElementById('recoveryBox');
         const recoveryList = document.getElementById('recoveryList');
         recoveryList.innerHTML = '';
@@ -761,6 +1102,8 @@
         }
     }
 
-    window.addEventListener('DOMContentLoaded', onCountryChanged);
+    window.addEventListener('DOMContentLoaded', () => {
+        initGlobe();
+    });
 </script>
 {% endblock %}

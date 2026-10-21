@@ -13,8 +13,8 @@ def test_root_redirect():
 def test_calculator_page():
     response = client.get("/calculator")
     assert response.status_code == 200
-    assert "AI Longevity &amp; Health Calculator" in response.text or "AI Longevity" in response.text
-    assert "Step 1: Sovereign Demographics" in response.text
+    assert "AI Longevity" in response.text
+    assert "Step 1:" in response.text
     assert "Step 2: Chronic Medical Conditions" in response.text
 
 

@@ -7,6 +7,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 
+from fastapi.staticfiles import StaticFiles
+import pycountry
+
 from app.database import get_db
 from app.models import Country, Indicator, Observation, Source
 from app.ml_model import predict_longevity, CHRONIC_DISEASE_IMPACTS, HABIT_IMPACTS
@@ -15,8 +18,11 @@ from etl.realtime_pipeline import sync_country_realtime
 app = FastAPI(
     title="Vitalis - Global Health & Longevity Platform",
     description="Real-time Global Health Data Platform and Chronic Disease / Lifestyle Longevity Calculator using WHO & World Bank APIs.",
-    version="1.2.0",
+    version="1.3.0",
 )
+
+# Mount static files for local D3, TopoJSON, and World Atlas
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -108,6 +114,66 @@ def get_countries(db: Session = Depends(get_db)):
 @app.get("/api/chronic-diseases")
 def get_chronic_diseases():
     return CHRONIC_DISEASE_IMPACTS
+
+
+@app.get("/api/globe/countries-stats")
+def get_globe_countries_stats(db: Session = Depends(get_db)):
+    """
+    Returns country longevity statistics keyed by both ISO3 and numeric country IDs
+    for fast 3D globe rendering, choropleth shading, and interactive hover tooltips.
+    """
+    sub = (
+        db.query(
+            Observation.country_iso3,
+            func.max(Observation.year).label("max_year")
+        )
+        .join(Indicator)
+        .filter(Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]))
+        .group_by(Observation.country_iso3)
+        .subquery()
+    )
+
+    rows = (
+        db.query(
+            Country.iso3,
+            Country.name,
+            Country.region,
+            Country.income_group,
+            Observation.value,
+            Observation.year
+        )
+        .join(Country, Observation.country_iso3 == Country.iso3)
+        .join(Indicator, Observation.indicator_id == Indicator.indicator_id)
+        .join(sub, (Observation.country_iso3 == sub.c.country_iso3) & (Observation.year == sub.c.max_year))
+        .filter(Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]))
+        .filter(Observation.sex == "BTSX")
+        .all()
+    )
+
+    stats = {}
+    for r in rows:
+        val = float(r.value)
+        num_code = None
+        try:
+            c = pycountry.countries.get(alpha_3=r.iso3)
+            if c and hasattr(c, "numeric"):
+                num_code = str(int(c.numeric))
+        except Exception:
+            pass
+
+        entry = {
+            "iso3": r.iso3,
+            "name": r.name,
+            "region": r.region,
+            "income_group": r.income_group,
+            "life_expectancy": round(val, 1),
+            "year": r.year,
+        }
+        stats[r.iso3] = entry
+        if num_code:
+            stats[num_code] = entry
+
+    return stats
 
 
 @app.post("/api/pipeline/sync-country/{iso3}")
