@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Observations Data Platform · Vitalis{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="margin-bottom: 2rem;">
+    <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">Global Health Observations</h1>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Query observations stored in the local PostgreSQL database, harvested across WHO GHO and World Bank.
+    </p>
+
+    <form method="get" action="/observations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 140px; gap: 1rem; align-items: end;">
+        <div>
+            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.35rem; display:block;">Country</label>
+            <select name="country_iso3" class="form-control">
+                <option value="">All Countries</option>
+                {% for c in countries %}
+                <option value="{{ c.iso3 }}" {% if selected_country == c.iso3 %}selected{% endif %}>
+                    {{ c.name }} ({{ c.iso3 }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.35rem; display:block;">Indicator</label>
+            <select name="indicator_code" class="form-control">
+                <option value="">All Indicators</option>
+                {% for ind in indicators %}
+                <option value="{{ ind.code }}" {% if selected_indicator == ind.code %}selected{% endif %}>
+                    {{ ind.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.35rem; display:block;">Year</label>
+            <input type="number" name="year" class="form-control" placeholder="e.g. 2019" value="{{ selected_year or '' }}">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="height: 44px;">
+            Filter Data
+        </button>
+    </form>
+</div>
+
+<div class="glass-card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+        <div style="font-weight: 600; color: var(--text-secondary);">
+            Showing {{ observations|length }} observations
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+            Source: PostgreSQL <code>observation</code> fact table
+        </div>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border-glass); color: var(--text-muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em;">
+                    <th style="padding: 0.75rem;">Country</th>
+                    <th style="padding: 0.75rem;">Indicator</th>
+                    <th style="padding: 0.75rem;">Year</th>
+                    <th style="padding: 0.75rem;">Sex</th>
+                    <th style="padding: 0.75rem; text-align: right;">Value</th>
+                    <th style="padding: 0.75rem;">Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in observations %}
+                <tr style="border-bottom: 1px solid var(--border-glass);">
+                    <td style="padding: 0.85rem 0.75rem; font-weight: 600; color: #fff;">
+                        {{ o.country_name }} ({{ o.country_iso3 }})
+                    </td>
+                    <td style="padding: 0.85rem 0.75rem; color: var(--text-secondary);">
+                        {{ o.indicator_name }}
+                    </td>
+                    <td style="padding: 0.85rem 0.75rem;">{{ o.year }}</td>
+                    <td style="padding: 0.85rem 0.75rem;">
+                        <span style="font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: var(--radius-sm); background: rgba(255,255,255,0.06);">
+                            {{ o.sex }}
+                        </span>
+                    </td>
+                    <td style="padding: 0.85rem 0.75rem; text-align: right; font-weight: 700; color: #38bdf8;">
+                        {{ "%.2f"|format(o.value) if o.value is not none else "N/A" }}
+                    </td>
+                    <td style="padding: 0.85rem 0.75rem; color: var(--text-muted); font-size: 0.8rem;">
+                        {{ o.unit or '' }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                        No observations found matching the criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

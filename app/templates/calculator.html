@@ -1,0 +1,668 @@
+{% extends "base.html" %}
+
+{% block title %}Longevity Calculator · Vitalis Health Data Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    .wizard-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .stepper {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2.5rem;
+        position: relative;
+    }
+
+    .stepper::before {
+        content: '';
+        position: absolute;
+        top: 22px;
+        left: 40px;
+        right: 40px;
+        height: 2px;
+        background: var(--border-glass);
+        z-index: 1;
+    }
+
+    .step-item {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+
+    .step-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border-glass);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--text-muted);
+        transition: var(--transition-smooth);
+    }
+
+    .step-item.active .step-circle {
+        background: var(--gradient-primary);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: var(--shadow-glow);
+    }
+
+    .step-item.completed .step-circle {
+        background: var(--accent-emerald);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .step-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .step-item.active .step-label {
+        color: var(--text-primary);
+    }
+
+    .step-content {
+        display: none;
+    }
+
+    .step-content.active {
+        display: block;
+        animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Form controls */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .form-control, select, input[type="text"], input[type="number"] {
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border-radius: var(--radius-md);
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--border-glass);
+        color: #fff;
+        font-family: inherit;
+        font-size: 0.95rem;
+        transition: var(--transition-smooth);
+    }
+
+    .form-control:focus, select:focus {
+        outline: none;
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+    }
+
+    /* Habit Cards */
+    .habit-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .habit-pill {
+        border: 1px solid var(--border-glass);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 0.85rem 0.5rem;
+        border-radius: var(--radius-md);
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition-smooth);
+    }
+
+    .habit-pill:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .habit-pill.selected {
+        background: rgba(6, 182, 212, 0.15);
+        border-color: var(--accent-cyan);
+        color: #fff;
+    }
+
+    .habit-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .habit-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .habit-impact-tag {
+        font-size: 0.75rem;
+        margin-top: 0.2rem;
+        font-weight: 700;
+    }
+
+    .impact-neg { color: var(--accent-rose); }
+    .impact-pos { color: var(--accent-emerald); }
+    .impact-zero { color: var(--text-muted); }
+
+    /* Country stat badge */
+    .country-preview {
+        background: linear-gradient(135deg, rgba(6, 182, 212, 0.1), rgba(59, 130, 246, 0.05));
+        border: 1px solid rgba(6, 182, 212, 0.25);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .stat-val {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #38bdf8;
+    }
+
+    /* Result Dashboard */
+    .result-hero {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        background: radial-gradient(circle at center, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+        border-radius: var(--radius-lg);
+        margin-bottom: 2rem;
+    }
+
+    .expectancy-number {
+        font-family: 'Outfit', sans-serif;
+        font-size: 5rem;
+        font-weight: 900;
+        line-height: 1;
+        background: linear-gradient(135deg, #38bdf8, #818cf8, #34d399);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0.5rem 0;
+    }
+
+    .delta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1.2rem;
+        border-radius: var(--radius-full);
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+
+    .breakdown-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--border-glass);
+    }
+
+    .breakdown-row:last-child {
+        border-bottom: none;
+    }
+
+    .factor-name {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+    }
+
+    .factor-badge {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">Personal Longevity Calculator</h1>
+        <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto;">
+            Combines sovereign baseline data from the WHO & World Bank with epidemiological risk models (smoking, alcohol, activity, BMI) to estimate your life expectancy.
+        </p>
+    </div>
+
+    <!-- Step Progress Bar -->
+    <div class="stepper">
+        <div class="step-item active" id="stepIndicator1" onclick="goToStep(1)">
+            <div class="step-circle">1</div>
+            <div class="step-label">Country & Baseline</div>
+        </div>
+        <div class="step-item" id="stepIndicator2" onclick="goToStep(2)">
+            <div class="step-circle">2</div>
+            <div class="step-label">Habits & Lifestyle</div>
+        </div>
+        <div class="step-item" id="stepIndicator3" onclick="goToStep(3)">
+            <div class="step-circle">3</div>
+            <div class="step-label">Longevity Forecast</div>
+        </div>
+    </div>
+
+    <!-- STEP 1: Country & Demographics -->
+    <div class="glass-card step-content active" id="step1">
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Step 1: Your Baseline Origin</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            Select your country of residence to load official mean life expectancy benchmarked by WHO and the World Bank.
+        </p>
+
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label for="countrySelect">Select Country</label>
+                <select id="countrySelect" onchange="onCountryChanged()">
+                    <option value="">-- Choose Country --</option>
+                    {% for c in countries %}
+                    <option value="{{ c.iso3 }}" {% if c.iso3 == 'USA' %}selected{% endif %}>
+                        {{ c.name }} ({{ c.iso3 }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="userAge">Current Age: <span id="ageDisplay" style="color:var(--accent-cyan); font-weight:700;">28</span></label>
+                <input type="range" id="userAge" min="15" max="95" value="28" oninput="document.getElementById('ageDisplay').innerText = this.value">
+            </div>
+
+            <div class="form-group">
+                <label for="biologicalSex">Biological Sex</label>
+                <select id="biologicalSex" onchange="onCountryChanged()">
+                    <option value="BTSX">Both Sexes / Average</option>
+                    <option value="MLE">Male</option>
+                    <option value="FMLE">Female</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="country-preview" id="countryPreviewBox">
+            <div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">
+                    WHO / World Bank Baseline
+                </div>
+                <div id="previewCountryName" style="font-size: 1.25rem; font-weight: 700; color: #fff; margin-top: 0.2rem;">
+                    United States
+                </div>
+                <div id="previewRegion" style="font-size: 0.85rem; color: var(--text-secondary);">
+                    North America · High Income
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <div class="stat-val" id="previewLifeExpectancy">77.5</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">years average expectancy</div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 2rem;">
+            <button class="btn btn-primary" onclick="goToStep(2)">Proceed to Habits →</button>
+        </div>
+    </div>
+
+    <!-- STEP 2: Lifestyle & Habits -->
+    <div class="glass-card step-content" id="step2">
+        <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem;">Step 2: Habits & Lifestyle Impact</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+            Quantify individual habits that modulate longevity compared to the country population mean.
+        </p>
+
+        <!-- Smoking -->
+        <div style="margin-top: 1.5rem;">
+            <label>🚬 Smoking & Tobacco Habit</label>
+            <div class="habit-options" id="smokingOptions">
+                <div class="habit-pill selected" data-factor="smoking" data-val="never" onclick="selectHabit(this)">
+                    <div class="habit-icon">🌱</div>
+                    <div class="habit-title">Non-Smoker</div>
+                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="former" onclick="selectHabit(this)">
+                    <div class="habit-icon">🛡️</div>
+                    <div class="habit-title">Former Smoker</div>
+                    <div class="habit-impact-tag impact-neg">-1.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="light" onclick="selectHabit(this)">
+                    <div class="habit-icon">💨</div>
+                    <div class="habit-title">Light (&lt;10/day)</div>
+                    <div class="habit-impact-tag impact-neg">-4.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="moderate" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚬</div>
+                    <div class="habit-title">Moderate (10-19)</div>
+                    <div class="habit-impact-tag impact-neg">-7.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="heavy" onclick="selectHabit(this)">
+                    <div class="habit-icon">⚠️</div>
+                    <div class="habit-title">Heavy (20+/day)</div>
+                    <div class="habit-impact-tag impact-neg">-10.0 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alcohol -->
+        <div style="margin-top: 1.75rem;">
+            <label>🍷 Alcohol Consumption (Drinks / Week)</label>
+            <div class="habit-options" id="alcoholOptions">
+                <div class="habit-pill selected" data-factor="alcohol" data-val="none" onclick="selectHabit(this)">
+                    <div class="habit-icon">💧</div>
+                    <div class="habit-title">None / Rare (0-2)</div>
+                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="moderate" onclick="selectHabit(this)">
+                    <div class="habit-icon">🥂</div>
+                    <div class="habit-title">Moderate (3-7)</div>
+                    <div class="habit-impact-tag impact-zero">-0.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="heavy" onclick="selectHabit(this)">
+                    <div class="habit-icon">🍻</div>
+                    <div class="habit-title">Heavy (8-14)</div>
+                    <div class="habit-impact-tag impact-neg">-2.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="excessive" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚨</div>
+                    <div class="habit-title">Excessive (15+)</div>
+                    <div class="habit-impact-tag impact-neg">-5.0 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Physical Activity -->
+        <div style="margin-top: 1.75rem;">
+            <label>🏃 Physical Activity & Exercise</label>
+            <div class="habit-options" id="exerciseOptions">
+                <div class="habit-pill" data-factor="exercise" data-val="sedentary" onclick="selectHabit(this)">
+                    <div class="habit-icon">🛋️</div>
+                    <div class="habit-title">Sedentary (&lt;1h/wk)</div>
+                    <div class="habit-impact-tag impact-neg">-2.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="exercise" data-val="light" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚶</div>
+                    <div class="habit-title">Light (1-2h/wk)</div>
+                    <div class="habit-impact-tag impact-zero">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill selected" data-factor="exercise" data-val="active" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚴</div>
+                    <div class="habit-title">Active (150m/wk)</div>
+                    <div class="habit-impact-tag impact-pos">+3.8 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="exercise" data-val="high" onclick="selectHabit(this)">
+                    <div class="habit-icon">🏋️</div>
+                    <div class="habit-title">Athlete (5h+/wk)</div>
+                    <div class="habit-impact-tag impact-pos">+4.5 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Body Mass Index -->
+        <div style="margin-top: 1.75rem;">
+            <label>⚖️ Body Mass Index (BMI category)</label>
+            <div class="habit-options" id="bmiOptions">
+                <div class="habit-pill" data-factor="bmi" data-val="underweight" onclick="selectHabit(this)">
+                    <div class="habit-icon">📉</div>
+                    <div class="habit-title">Underweight (&lt;18.5)</div>
+                    <div class="habit-impact-tag impact-neg">-2.0 yrs</div>
+                </div>
+                <div class="habit-pill selected" data-factor="bmi" data-val="normal" onclick="selectHabit(this)">
+                    <div class="habit-icon">✨</div>
+                    <div class="habit-title">Normal (18.5-24.9)</div>
+                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="bmi" data-val="overweight" onclick="selectHabit(this)">
+                    <div class="habit-icon">⚖️</div>
+                    <div class="habit-title">Overweight (25-29.9)</div>
+                    <div class="habit-impact-tag impact-neg">-1.2 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="bmi" data-val="obese" onclick="selectHabit(this)">
+                    <div class="habit-icon">⚠️</div>
+                    <div class="habit-title">Obese (30+)</div>
+                    <div class="habit-impact-tag impact-neg">-4.0 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 2.5rem;">
+            <button class="btn btn-outline" onclick="goToStep(1)">← Back</button>
+            <button class="btn btn-primary" onclick="calculateForecast()">Calculate Longevity →</button>
+        </div>
+    </div>
+
+    <!-- STEP 3: Results Dashboard -->
+    <div class="glass-card step-content" id="step3">
+        <div class="result-hero">
+            <div style="font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted);">
+                Personalized Estimated Life Expectancy
+            </div>
+            <div class="expectancy-number" id="predictedAge">81.3</div>
+            <div>
+                <span class="delta-badge" id="deltaBadge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
+                    +3.8 years vs national average
+                </span>
+            </div>
+            <div style="color: var(--text-secondary); margin-top: 0.75rem; font-size: 0.95rem;" id="remainingLifeText">
+                Approximately 53.3 years remaining based on your current age.
+            </div>
+        </div>
+
+        <h3 style="font-size: 1.25rem; margin-bottom: 1rem;">Habit & Factor Contribution Breakdown</h3>
+        <div style="background: rgba(0,0,0,0.2); border-radius: var(--radius-md); padding: 1.5rem;">
+            <div class="breakdown-row">
+                <div class="factor-name">
+                    <span>🌐</span>
+                    <span>National Baseline (<span id="resCountryName">USA</span>)</span>
+                </div>
+                <div class="factor-badge" id="resBaselineVal" style="color: #fff;">77.5 yrs</div>
+            </div>
+            <div class="breakdown-row">
+                <div class="factor-name">
+                    <span>🚬</span>
+                    <span>Smoking Habit Impact</span>
+                </div>
+                <div class="factor-badge" id="resSmokingVal">0.0 yrs</div>
+            </div>
+            <div class="breakdown-row">
+                <div class="factor-name">
+                    <span>🍷</span>
+                    <span>Alcohol Habit Impact</span>
+                </div>
+                <div class="factor-badge" id="resAlcoholVal">0.0 yrs</div>
+            </div>
+            <div class="breakdown-row">
+                <div class="factor-name">
+                    <span>🏃</span>
+                    <span>Physical Activity Benefit</span>
+                </div>
+                <div class="factor-badge" id="resExerciseVal">+3.8 yrs</div>
+            </div>
+            <div class="breakdown-row">
+                <div class="factor-name">
+                    <span>⚖️</span>
+                    <span>BMI & Metabolic Weight</span>
+                </div>
+                <div class="factor-badge" id="resBmiVal">0.0 yrs</div>
+            </div>
+        </div>
+
+        <!-- Scientific Evidence Box -->
+        <div style="margin-top: 2rem; padding: 1.25rem; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: var(--radius-md);">
+            <h4 style="font-size: 0.95rem; color: #93c5fd; margin-bottom: 0.5rem;">Epidemiological & Actuarial Foundations</h4>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
+                Calculations are benchmarked against official country estimates in PostgreSQL (WHO GHO <code>WHOSIS_000001</code> & World Bank <code>SP.DYN.LE00.IN</code>) and peer-reviewed cohort studies: Doll et al. (BMJ 2004, smoking mortality), Wood et al. (The Lancet 2018, alcohol thresholds), and Moore et al. (PLOS Med, physical activity longevity gains).
+            </p>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 2rem;">
+            <button class="btn btn-outline" onclick="goToStep(2)">← Modify Habits</button>
+            <button class="btn btn-primary" onclick="goToStep(1)">Start Over ↺</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let currentStep = 1;
+    let selectedHabits = {
+        smoking: 'never',
+        alcohol: 'none',
+        exercise: 'active',
+        bmi: 'normal'
+    };
+    let currentCountryBaseline = 77.5;
+
+    function goToStep(step) {
+        currentStep = step;
+        document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+        document.getElementById(`step${step}`).classList.add('active');
+
+        for (let i = 1; i <= 3; i++) {
+            const ind = document.getElementById(`stepIndicator${i}`);
+            ind.classList.remove('active', 'completed');
+            if (i === step) ind.classList.add('active');
+            else if (i < step) ind.classList.add('completed');
+        }
+    }
+
+    function selectHabit(el) {
+        const factor = el.getAttribute('data-factor');
+        const val = el.getAttribute('data-val');
+        selectedHabits[factor] = val;
+
+        const container = el.parentElement;
+        container.querySelectorAll('.habit-pill').forEach(p => p.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    async function onCountryChanged() {
+        const countryIso3 = document.getElementById('countrySelect').value;
+        const sex = document.getElementById('biologicalSex').value;
+        if (!countryIso3) return;
+
+        try {
+            const res = await fetch(`/api/country/${countryIso3}/baseline?sex=${sex}`);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('previewCountryName').innerText = data.name;
+                document.getElementById('previewRegion').innerText = `${data.region || 'Global'} · ${data.income_group || 'Standard'}`;
+                currentCountryBaseline = data.life_expectancy || 75.0;
+                document.getElementById('previewLifeExpectancy').innerText = currentCountryBaseline.toFixed(1);
+            }
+        } catch (err) {
+            console.error('Error fetching country baseline:', err);
+        }
+    }
+
+    async function calculateForecast() {
+        const countryIso3 = document.getElementById('countrySelect').value || 'USA';
+        const age = parseInt(document.getElementById('userAge').value) || 28;
+        const sex = document.getElementById('biologicalSex').value || 'BTSX';
+
+        const payload = {
+            country_iso3: countryIso3,
+            current_age: age,
+            sex: sex,
+            smoking: selectedHabits.smoking,
+            alcohol: selectedHabits.alcohol,
+            exercise: selectedHabits.exercise,
+            bmi: selectedHabits.bmi
+        };
+
+        try {
+            const res = await fetch('/api/calculator/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                renderResults(result);
+                goToStep(3);
+            }
+        } catch (err) {
+            console.error('Calculation error:', err);
+        }
+    }
+
+    function renderResults(data) {
+        document.getElementById('predictedAge').innerText = data.predicted_life_expectancy.toFixed(1);
+        document.getElementById('resBaselineVal').innerText = `${data.baseline_life_expectancy.toFixed(1)} yrs`;
+        document.getElementById('resCountryName').innerText = data.country_name;
+
+        const delta = data.net_habit_impact;
+        const deltaBadge = document.getElementById('deltaBadge');
+        if (delta >= 0) {
+            deltaBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+            deltaBadge.style.color = 'var(--accent-emerald)';
+            deltaBadge.innerText = `+${delta.toFixed(1)} years vs national average`;
+        } else {
+            deltaBadge.style.background = 'rgba(244, 63, 94, 0.15)';
+            deltaBadge.style.color = 'var(--accent-rose)';
+            deltaBadge.innerText = `${delta.toFixed(1)} years vs national average`;
+        }
+
+        document.getElementById('remainingLifeText').innerText = 
+            `Approximately ${data.years_remaining.toFixed(1)} years remaining based on your current age of ${data.current_age}.`;
+
+        formatFactorRow('resSmokingVal', data.factors.smoking);
+        formatFactorRow('resAlcoholVal', data.factors.alcohol);
+        formatFactorRow('resExerciseVal', data.factors.exercise);
+        formatFactorRow('resBmiVal', data.factors.bmi);
+    }
+
+    function formatFactorRow(elementId, val) {
+        const el = document.getElementById(elementId);
+        if (val > 0) {
+            el.innerText = `+${val.toFixed(1)} yrs`;
+            el.style.color = 'var(--accent-emerald)';
+        } else if (val < 0) {
+            el.innerText = `${val.toFixed(1)} yrs`;
+            el.style.color = 'var(--accent-rose)';
+        } else {
+            el.innerText = `0.0 yrs`;
+            el.style.color = 'var(--text-muted)';
+        }
+    }
+
+    // Initialize country on load
+    window.addEventListener('DOMContentLoaded', onCountryChanged);
+</script>
+{% endblock %}
