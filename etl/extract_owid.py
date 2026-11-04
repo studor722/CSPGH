@@ -1,53 +1,78 @@
-import os
+import csv
+import io
 from pathlib import Path
-import pandas as pd
+from typing import Optional
+
 import requests
 
-CACHE_DIR = Path("data/raw")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+from etl.raw_files import save_raw
 
-OWID_URLS = {
-    "OWID_LIFE_EXP": "https://ourworldindata.org/grapher/life-expectancy.csv?v=1&csvType=full&useColumnShortNames=true",
-    "OWID_SMOKING_PREV": "https://ourworldindata.org/grapher/share-of-adults-who-smoke.csv",
-}
+BASE_URL = "https://ourworldindata.org/grapher"
+HTTP_TIMEOUT_S = 120
+_HEADERS = {"User-Agent": "Our World In Data data fetch/1.0"}
+_YEAR_COLUMN = "year"
+_DEFAULT_RAW_DIR = Path(__file__).resolve().parents[1] / "data" / "raw" / "owid"
 
 
-def extract_owid_dataset(dataset_key: str, use_cache: bool = True) -> pd.DataFrame:
+def _chart_url(slug: str) -> str:
+    return f"{BASE_URL}/{slug}.csv?v=1&csvType=full&useColumnShortNames=true"
+
+
+def _download_csv(slug: str) -> tuple[bytes, str]:
+    url = _chart_url(slug)
+    response = requests.get(url, headers=_HEADERS, timeout=HTTP_TIMEOUT_S)
+    response.raise_for_status()
+
+    return response.content, url
+
+
+def _lines_for_year(content: bytes, year: int, url: str) -> bytes:
+    """Keep the header and the records for ``year``, byte-for-byte.
+
+    The original lines are copied rather than re-serialized, so the subset is
+    still raw data. ``line_num`` maps each record back to its source lines,
+    which also handles quoted fields that span several lines.
     """
-    Download and cache Our World in Data CSV dataset.
-    Returns normalized DataFrame: [country_iso3, indicator_code, year, sex, value]
-    """
-    if dataset_key not in OWID_URLS:
-        raise ValueError(f"Unknown OWID dataset: {dataset_key}")
+    lines = content.decode("utf-8-sig").splitlines(keepends=True)
+    reader = csv.reader(lines)
+    header = next(reader, None)
+    if header is None or _YEAR_COLUMN not in header:
+        raise ValueError(f"{url}: no {_YEAR_COLUMN!r} column (got {header})")
+    year_index = header.index(_YEAR_COLUMN)
 
-    url = OWID_URLS[dataset_key]
-    cache_file = CACHE_DIR / f"owid_{dataset_key.lower()}.csv"
+    kept = lines[: reader.line_num]
+    start = reader.line_num
+    for record in reader:
+        if len(record) > year_index and record[year_index].strip() == str(year):
+            kept.extend(lines[start : reader.line_num])
+        start = reader.line_num
 
-    if not (use_cache and cache_file.exists()):
-        resp = requests.get(url, timeout=30)
-        resp.raise_for_status()
-        with open(cache_file, "w", encoding="utf-8") as f:
-            f.write(resp.text)
+    return "".join(kept).encode("utf-8")
 
-    df_raw = pd.read_csv(cache_file)
 
-    # Standard OWID columns: Entity, Code, Year, and indicator value
-    # Filter out rows where Code is NaN (regions like World, Africa, etc.)
-    df_raw = df_raw.dropna(subset=["Code"])
-    # Filter 3-letter codes
-    df_raw = df_raw[df_raw["Code"].str.len() == 3]
+def download_owid_chart(
+    slug: str,
+    *,
+    output_dir: Optional[Path] = None,
+) -> tuple[Path, str]:
+    content, url = _download_csv(slug)
+    path = save_raw(output_dir or _DEFAULT_RAW_DIR, f"{slug}_full.csv", content, url)
 
-    val_cols = [c for c in df_raw.columns if c not in ["Entity", "Code", "Year"]]
-    if not val_cols:
-        return pd.DataFrame(columns=["country_iso3", "indicator_code", "year", "sex", "value"])
+    return path, url
 
-    val_col = val_cols[0]
-    df_normalized = pd.DataFrame({
-        "country_iso3": df_raw["Code"].str.strip().str.upper(),
-        "indicator_code": dataset_key,
-        "year": df_raw["Year"].astype(int),
-        "sex": "BTSX",
-        "value": pd.to_numeric(df_raw[val_col], errors="coerce"),
-    }).dropna(subset=["value"])
 
-    return df_normalized
+def download_owid_chart_for_year(
+    slug: str,
+    year: int,
+    *,
+    output_dir: Optional[Path] = None,
+) -> tuple[Path, str]:
+    content, url = _download_csv(slug)
+    path = save_raw(
+        output_dir or _DEFAULT_RAW_DIR,
+        f"{slug}_{year}.csv",
+        _lines_for_year(content, year, url),
+        url,
+    )
+
+    return path, url

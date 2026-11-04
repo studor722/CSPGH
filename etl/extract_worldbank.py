@@ -1,99 +1,109 @@
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
-import pandas as pd
+from typing import Optional
+
 import requests
 
-CACHE_DIR = Path("data/raw")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+from etl.json_types import JsonRecord
+from etl.raw_files import save_raw
 
-WB_BASE_URL = "https://api.worldbank.org/v2"
-
-WB_INDICATORS = {
-    "SP.DYN.LE00.IN": "Life expectancy at birth, total (years)",
-    "SH.PRV.SMOK": "Prevalence of current tobacco use (% of adults)",
-    "SH.XPD.CHEX.GD.ZS": "Current health expenditure (% of GDP)",
-    "NY.GDP.PCAP.CD": "GDP per capita (current US$)",
-}
+BASE_URL = "https://api.worldbank.org/v2"
+_DEFAULT_RAW_DIR = Path(__file__).resolve().parents[1] / "data" / "raw" / "worldbank"
 
 
-def extract_worldbank_countries(use_cache: bool = True) -> pd.DataFrame:
-    """
-    Extract sovereign country metadata from the World Bank API.
-    Returns DataFrame: [iso3, iso2, name, region, income_group]
-    """
-    cache_file = CACHE_DIR / "worldbank_countries.json"
-    raw_data = None
-
-    if use_cache and cache_file.exists():
-        with open(cache_file, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
-    else:
-        url = f"{WB_BASE_URL}/country?format=json&per_page=400"
-        resp = requests.get(url, timeout=30)
-        resp.raise_for_status()
-        raw_data = resp.json()
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(raw_data, f)
-
-    countries = []
-    if len(raw_data) > 1 and isinstance(raw_data[1], list):
-        for c in raw_data[1]:
-            # Filter out aggregate regions (World, Latin America, etc.)
-            region_name = c.get("region", {}).get("value", "")
-            if region_name == "Aggregates" or not c.get("id"):
-                continue
-
-            countries.append({
-                "iso3": c.get("id", "").strip().upper(),
-                "iso2": c.get("iso2Code", "").strip().upper(),
-                "name": c.get("name", "").strip(),
-                "region": region_name,
-                "income_group": c.get("incomeLevel", {}).get("value", ""),
-            })
-
-    return pd.DataFrame(countries)
+class WorldBankApiError(RuntimeError):
+    """The World Bank API returned an error or an unexpected response."""
 
 
-def extract_worldbank_indicator(
-    indicator_code: str,
-    date_range: str = "2000:2023",
-    use_cache: bool = True
-) -> pd.DataFrame:
-    """
-    Extract indicator timeseries from World Bank Indicators API v2.
-    Returns normalized DataFrame: [country_iso3, indicator_code, year, sex, value]
-    """
-    cache_file = CACHE_DIR / f"wb_{indicator_code}.json"
-    raw_data = None
+def _get_all_pages(url: str, params: dict[str, str | int]) -> list[JsonRecord]:
+    # World Bank wraps every response as [metadata, records]; walk every page.
+    # Errors (e.g. an unknown indicator) come back as HTTP 200 with
+    # [{"message": [...]}], so the shape has to be checked.
+    page = 1
+    records: list[JsonRecord] = []
+    while True:
+        response = requests.get(
+            url, params={**params, "format": "json", "page": page}, timeout=60
+        )
+        response.raise_for_status()
+        body: object = response.json()
+        if not (isinstance(body, list) and len(body) == 2):
+            raise WorldBankApiError(f"{url}: unexpected response {body!r}")
+        meta, data = body
+        if not isinstance(meta, dict) or "pages" not in meta:
+            raise WorldBankApiError(f"{url}: missing page metadata in {meta!r}")
+        if data is not None and not isinstance(data, list):
+            raise WorldBankApiError(f"{url}: records are not a list: {data!r}")
+        records.extend(data or [])
+        if page >= int(meta["pages"]):
+            return records
+        page += 1
 
-    if use_cache and cache_file.exists():
-        with open(cache_file, "r", encoding="utf-8") as f:
-            raw_data = json.load(f)
-    else:
-        url = f"{WB_BASE_URL}/country/all/indicator/{indicator_code}?format=json&date={date_range}&per_page=15000"
-        resp = requests.get(url, timeout=45)
-        resp.raise_for_status()
-        raw_data = resp.json()
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(raw_data, f)
 
-    rows = []
-    if len(raw_data) > 1 and isinstance(raw_data[1], list):
-        for item in raw_data[1]:
-            c_iso3 = item.get("countryiso3code")
-            val = item.get("value")
-            year = item.get("date")
+def _source_url(url: str, params: dict[str, str | int]) -> str:
+    """The request URL with its query string, minus the per-page parameter."""
+    return requests.Request(
+        "GET", url, params={**params, "format": "json"}
+    ).prepare().url or url
 
-            if not c_iso3 or val is None or not year:
-                continue
 
-            rows.append({
-                "country_iso3": c_iso3.strip().upper(),
-                "indicator_code": indicator_code,
-                "year": int(year),
-                "sex": "BTSX",
-                "value": float(val),
-            })
+def _save_records(
+    output_dir: Path,
+    filename: str,
+    records: list[JsonRecord],
+    url: str,
+    params: dict[str, str | int],
+) -> Path:
+    return save_raw(
+        output_dir,
+        filename,
+        json.dumps(records).encode("utf-8"),
+        _source_url(url, params),
+    )
 
-    return pd.DataFrame(rows)
+
+def download_worldbank_countries(*, output_dir: Optional[Path] = None) -> tuple[Path, str]:
+    url = f"{BASE_URL}/country"
+    params: dict[str, str | int] = {"per_page": 400}
+    records = _get_all_pages(url, params)
+    path = _save_records(
+        output_dir or _DEFAULT_RAW_DIR, "countries.json", records, url, params
+    )
+
+    return path, url
+
+
+def download_worldbank_indicator(
+    code: str,
+    years: str = "2000:2023",
+    *,
+    output_dir: Optional[Path] = None,
+) -> tuple[Path, str]:
+    url = f"{BASE_URL}/country/all/indicator/{code}"
+    params: dict[str, str | int] = {"date": years, "per_page": 10000}
+    records = _get_all_pages(url, params)
+    path = _save_records(
+        output_dir or _DEFAULT_RAW_DIR,
+        f"{code}_{years.replace(':', '-')}.json",
+        records,
+        url,
+        params,
+    )
+
+    return path, url
+
+
+def download_worldbank_indicator_for_year(
+    code: str,
+    year: int,
+    *,
+    output_dir: Optional[Path] = None,
+) -> tuple[Path, str]:
+    url = f"{BASE_URL}/country/all/indicator/{code}"
+    params: dict[str, str | int] = {"date": str(year), "per_page": 10000}
+    records = _get_all_pages(url, params)
+    path = _save_records(
+        output_dir or _DEFAULT_RAW_DIR, f"{code}_{year}.json", records, url, params
+    )
+
+    return path, url
