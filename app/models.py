@@ -1,8 +1,12 @@
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
+
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
+    Enum,
     ForeignKey,
     Index,
     Numeric,
@@ -10,13 +14,22 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
-    pass
+    """Declarative base for all ORM models."""
+
+
+class Sex(StrEnum):
+    """Sex dimension of an observation (WHO GHO codes)."""
+
+    BOTH = "BTSX"
+    MALE = "MLE"
+    FEMALE = "FMLE"
 
 
 class Source(Base):
@@ -53,8 +66,7 @@ class Observation(Base):
     __tablename__ = "observation"
     __table_args__ = (
         UniqueConstraint(
-            "country_iso3", "indicator_id", "year", "sex", "age_group",
-            name="uq_observation"
+            "country_iso3", "indicator_id", "year", "sex", name="uq_observation"
         ),
         Index("ix_observation_indicator_year", "indicator_id", "year"),
     )
@@ -63,9 +75,18 @@ class Observation(Base):
     country_iso3: Mapped[str] = mapped_column(ForeignKey("country.iso3"))
     indicator_id: Mapped[int] = mapped_column(ForeignKey("indicator.indicator_id"))
     year: Mapped[int] = mapped_column(SmallInteger)
-    sex: Mapped[str] = mapped_column(String(10), server_default="BTSX")
-    age_group: Mapped[str] = mapped_column(String(20), server_default="ALL")
+    # Non-native enum: stored as VARCHAR(10) holding the code (e.g. "BTSX").
+    sex: Mapped[Sex] = mapped_column(
+        Enum(
+            Sex,
+            native_enum=False,
+            length=10,
+            values_callable=lambda members: [m.value for m in members],
+        ),
+        server_default=Sex.BOTH.value,
+    )
     value: Mapped[Decimal | None] = mapped_column(Numeric(18, 4))
+    is_outlier: Mapped[bool] = mapped_column(Boolean, server_default=false(), nullable=False)
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
