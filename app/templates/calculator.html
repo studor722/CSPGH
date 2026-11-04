@@ -1,0 +1,1109 @@
+{% extends "base.html" %}
+
+{% block title %}AI Longevity Calculator · Vitalis Health Data Platform{% endblock %}
+
+{% block extra_head %}
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+    .wizard-container {
+        max-width: 920px;
+        margin: 0 auto;
+    }
+
+    .stepper {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+        position: relative;
+    }
+
+    .stepper::before {
+        content: '';
+        position: absolute;
+        top: 22px;
+        left: 40px;
+        right: 40px;
+        height: 2px;
+        background: var(--border-glass);
+        z-index: 1;
+    }
+
+    .step-item {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.4rem;
+        cursor: pointer;
+    }
+
+    .step-circle {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border-glass);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--text-muted);
+        transition: var(--transition-smooth);
+    }
+
+    .step-item.active .step-circle {
+        background: var(--gradient-primary);
+        border-color: transparent;
+        color: #fff;
+        box-shadow: var(--shadow-glow);
+    }
+
+    .step-item.completed .step-circle {
+        background: var(--accent-emerald);
+        border-color: transparent;
+        color: #fff;
+    }
+
+    .step-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-align: center;
+    }
+
+    .step-item.active .step-label {
+        color: var(--text-primary);
+    }
+
+    .step-content {
+        display: none;
+    }
+
+    .step-content.active {
+        display: block;
+        animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.25rem;
+        margin-top: 1.25rem;
+    }
+
+    @media (max-width: 640px) {
+        .form-grid { grid-template-columns: 1fr; }
+        .stepper::before { display: none; }
+        .step-label { font-size: 0.7rem; }
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    label {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .form-control, select, input[type="text"], input[type="number"] {
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border-radius: var(--radius-md);
+        background: rgba(15, 23, 42, 0.65);
+        border: 1px solid var(--border-glass);
+        color: #fff;
+        font-family: inherit;
+        font-size: 0.95rem;
+        transition: var(--transition-smooth);
+    }
+
+    .form-control:focus, select:focus {
+        outline: none;
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+    }
+
+    /* Live sync bar */
+    .sync-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(6, 182, 212, 0.08);
+        border: 1px solid rgba(6, 182, 212, 0.25);
+        border-radius: var(--radius-md);
+        padding: 0.75rem 1.25rem;
+        margin-top: 1rem;
+        font-size: 0.85rem;
+    }
+
+    /* Disease cards */
+    .disease-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+        margin-top: 1.25rem;
+    }
+
+    .disease-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border-glass);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        cursor: pointer;
+        transition: var(--transition-smooth);
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .disease-card:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(244, 63, 94, 0.4);
+    }
+
+    .disease-card.selected {
+        background: rgba(244, 63, 94, 0.12);
+        border-color: var(--accent-rose);
+        box-shadow: 0 4px 20px rgba(244, 63, 94, 0.2);
+    }
+
+    .disease-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .disease-badge {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--accent-rose);
+        background: rgba(244, 63, 94, 0.15);
+        padding: 0.2rem 0.6rem;
+        border-radius: var(--radius-full);
+    }
+
+    /* Habit cards */
+    .habit-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+
+    .habit-pill {
+        border: 1px solid var(--border-glass);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 0.85rem 0.5rem;
+        border-radius: var(--radius-md);
+        text-align: center;
+        cursor: pointer;
+        transition: var(--transition-smooth);
+    }
+
+    .habit-pill:hover {
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .habit-pill.selected {
+        background: rgba(6, 182, 212, 0.15);
+        border-color: var(--accent-cyan);
+        color: #fff;
+    }
+
+    .habit-icon { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    .habit-title { font-size: 0.85rem; font-weight: 600; }
+    .habit-impact-tag { font-size: 0.75rem; margin-top: 0.2rem; font-weight: 700; }
+    .impact-neg { color: var(--accent-rose); }
+    .impact-pos { color: var(--accent-emerald); }
+    .impact-zero { color: var(--text-muted); }
+
+    /* 3D Globe Styles */
+    .globe-stage {
+        position: relative;
+        width: 100%;
+        max-width: 600px;
+        margin: 1rem auto 1.5rem auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        user-select: none;
+    }
+
+    .globe-canvas-wrap {
+        position: relative;
+        width: 460px;
+        height: 460px;
+        max-width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #globeCanvas {
+        cursor: grab;
+        border-radius: 50%;
+        box-shadow: 0 0 60px rgba(6, 182, 212, 0.25);
+    }
+
+    #globeCanvas:active {
+        cursor: grabbing;
+    }
+
+    .globe-halo {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        border-radius: 50%;
+        pointer-events: none;
+        background: radial-gradient(circle, transparent 65%, rgba(6, 182, 212, 0.15) 88%, rgba(6, 182, 212, 0.35) 100%);
+    }
+
+    .globe-tooltip {
+        position: absolute;
+        display: none;
+        pointer-events: none;
+        z-index: 1000;
+        background: rgba(15, 23, 42, 0.94);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(56, 189, 248, 0.5);
+        padding: 0.75rem 1.1rem;
+        border-radius: 14px;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+        color: #fff;
+        min-width: 180px;
+        transform: translate(-50%, -125%);
+        transition: opacity 0.15s ease;
+    }
+
+    .globe-legend {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 1.25rem;
+        margin-top: 0.85rem;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .legend-color {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+    }
+
+    /* Results */
+    .result-hero {
+        text-align: center;
+        padding: 2.5rem 1rem;
+        background: radial-gradient(circle at center, rgba(6, 182, 212, 0.18) 0%, transparent 70%);
+        border-radius: var(--radius-lg);
+        margin-bottom: 2rem;
+    }
+
+    .expectancy-number {
+        font-family: 'Outfit', sans-serif;
+        font-size: 5rem;
+        font-weight: 900;
+        line-height: 1;
+        background: linear-gradient(135deg, #38bdf8, #818cf8, #34d399);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0.5rem 0;
+    }
+
+    .delta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.5rem 1.2rem;
+        border-radius: var(--radius-full);
+        font-weight: 700;
+        font-size: 1.05rem;
+    }
+
+    .breakdown-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.85rem 0;
+        border-bottom: 1px solid var(--border-glass);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h1 style="font-size: 2.4rem; margin-bottom: 0.5rem;">AI Longevity & Health Calculator</h1>
+        <p style="color: var(--text-secondary); max-width: 650px; margin: 0 auto; font-size: 0.95rem;">
+            Real-time pipeline linking WHO & World Bank sovereign baselines with chronic disease hazard ratios and lifestyle habit modifiers.
+        </p>
+    </div>
+
+    <!-- 4-Step Stepper -->
+    <div class="stepper">
+        <div class="step-item active" id="stepIndicator1" onclick="goToStep(1)">
+            <div class="step-circle">1</div>
+            <div class="step-label">Country Baseline</div>
+        </div>
+        <div class="step-item" id="stepIndicator2" onclick="goToStep(2)">
+            <div class="step-circle">2</div>
+            <div class="step-label">Chronic Diseases</div>
+        </div>
+        <div class="step-item" id="stepIndicator3" onclick="goToStep(3)">
+            <div class="step-circle">3</div>
+            <div class="step-label">Habits & Lifestyle</div>
+        </div>
+        <div class="step-item" id="stepIndicator4" onclick="goToStep(4)">
+            <div class="step-circle">4</div>
+            <div class="step-label">Longevity Forecast</div>
+        </div>
+    </div>
+
+    <!-- STEP 1: Country & Demographics -->
+    <div class="glass-card step-content active" id="step1">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+            <div>
+                <h2 style="font-size: 1.4rem;">Step 1: Explore & Select Country</h2>
+                <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.25rem;">
+                    Spin the 3D globe and hover over any nation to inspect its official life expectancy from the database.
+                </p>
+            </div>
+            <button class="btn btn-outline" style="padding:0.4rem 0.8rem; font-size:0.8rem;" onclick="triggerLiveSync()">
+                ⚡ Live Sync from WHO/WB
+            </button>
+        </div>
+
+        <!-- 3D Globe Component -->
+        <div class="globe-stage">
+            <div class="globe-canvas-wrap">
+                <canvas id="globeCanvas" width="460" height="460"></canvas>
+                <div class="globe-halo"></div>
+                <div id="globeTooltip" class="globe-tooltip">
+                    <div id="ttCountryName" style="font-weight:700; font-size:0.95rem; margin-bottom:0.2rem;">Country</div>
+                    <div style="font-size:0.78rem; color:var(--text-muted);" id="ttRegion">Region</div>
+                    <div style="margin-top:0.4rem; display:flex; align-items:baseline; gap:0.3rem;">
+                        <span style="font-family:'Outfit', sans-serif; font-size:1.4rem; font-weight:800; color:#38bdf8;" id="ttLifeExp">--</span>
+                        <span style="font-size:0.75rem; color:var(--text-muted);">years</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--accent-cyan); margin-top:0.3rem; letter-spacing:0.04em;">✦ Click to select</div>
+                </div>
+            </div>
+
+            <!-- Globe Legend -->
+            <div class="globe-legend">
+                <div class="legend-item"><span class="legend-color" style="background:#06b6d4;"></span> 80+ yrs</div>
+                <div class="legend-item"><span class="legend-color" style="background:#3b82f6;"></span> 75 – 79.9 yrs</div>
+                <div class="legend-item"><span class="legend-color" style="background:#f59e0b;"></span> 70 – 74.9 yrs</div>
+                <div class="legend-item"><span class="legend-color" style="background:#f43f5e;"></span> &lt; 70 yrs</div>
+            </div>
+            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.4rem;">
+                💡 Tip: Click and drag to rotate the globe · Scroll or pinch to interact
+            </div>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-group full-width">
+                <label for="countrySelect">Selected Country (Synced with Globe)</label>
+                <select id="countrySelect" onchange="onCountryDropdownSelected()">
+                    {% for c in countries %}
+                    <option value="{{ c.iso3 }}" {% if c.iso3 == 'ROU' %}selected{% elif not selected and c.iso3 == 'USA' %}selected{% endif %}>
+                        {{ c.name }} ({{ c.iso3 }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="userAge">Current Age: <span id="ageDisplay" style="color:var(--accent-cyan); font-weight:700;">25</span></label>
+                <input type="range" id="userAge" min="15" max="95" value="25" oninput="document.getElementById('ageDisplay').innerText = this.value">
+            </div>
+
+            <div class="form-group">
+                <label for="biologicalSex">Biological Sex</label>
+                <select id="biologicalSex" onchange="onCountryChanged()">
+                    <option value="BTSX">Both Sexes / Average</option>
+                    <option value="MLE">Male</option>
+                    <option value="FMLE">Female</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="sync-bar" id="syncBar">
+            <div>
+                <span style="color:var(--accent-emerald);">●</span>
+                <span id="syncSourceText">Data source: PostgreSQL Warehouse (WHO & World Bank)</span>
+            </div>
+            <div id="syncYearText" style="color:var(--text-muted);">Year: 2021</div>
+        </div>
+
+        <div style="background: linear-gradient(135deg, rgba(6,182,212,0.1), rgba(59,130,246,0.05)); border:1px solid rgba(6,182,212,0.25); border-radius:var(--radius-md); padding:1.25rem; margin-top:1.25rem; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:0.8rem; color:var(--text-muted); text-transform:uppercase;">National Mean Baseline</div>
+                <div id="previewCountryName" style="font-size:1.35rem; font-weight:700; color:#fff;">Romania</div>
+                <div id="previewRegion" style="font-size:0.85rem; color:var(--text-secondary);">Europe & Central Asia</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-family:'Outfit', sans-serif; font-size:2.4rem; font-weight:800; color:#38bdf8;" id="previewLifeExpectancy">75.3</div>
+                <div style="font-size:0.8rem; color:var(--text-muted);">years average expectancy</div>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; margin-top:2rem;">
+            <button class="btn btn-primary" onclick="goToStep(2)">Proceed to Chronic Diseases →</button>
+        </div>
+    </div>
+
+    <!-- STEP 2: Chronic Diseases -->
+    <div class="glass-card step-content" id="step2">
+        <h2 style="font-size: 1.4rem;">Step 2: Chronic Medical Conditions</h2>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.35rem;">
+            Select diagnosed chronic conditions. Our AI model applies sub-linear multimorbidity attenuation to prevent over-penalization.
+        </p>
+
+        <div class="disease-grid">
+            {% for key, d in chronic_diseases.items() %}
+            <div class="disease-card" data-disease="{{ key }}" onclick="toggleDisease(this)">
+                <div class="disease-header">
+                    <span style="font-size:1.6rem;">{{ d.icon }}</span>
+                    <span class="disease-badge">-{{ d.loss_years }} yrs</span>
+                </div>
+                <div style="font-weight:700; font-size:0.95rem; color:#fff;">{{ d.name }}</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4;">{{ d.description }}</div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top:2rem;">
+            <button class="btn btn-outline" onclick="goToStep(1)">← Back</button>
+            <button class="btn btn-primary" onclick="goToStep(3)">Proceed to Habits →</button>
+        </div>
+    </div>
+
+    <!-- STEP 3: Habits & Lifestyle -->
+    <div class="glass-card step-content" id="step3">
+        <h2 style="font-size: 1.4rem;">Step 3: Habits & Modifiable Lifestyle</h2>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 0.35rem;">
+            Epidemiological risk models calibrated from BMJ (Doll et al.) and The Lancet (Wood et al.).
+        </p>
+
+        <!-- Smoking -->
+        <div style="margin-top: 1.25rem;">
+            <label>🚬 Tobacco Smoking</label>
+            <div class="habit-options" id="smokingOptions">
+                <div class="habit-pill selected" data-factor="smoking" data-val="never" onclick="selectHabit(this)">
+                    <div class="habit-icon">🌱</div>
+                    <div class="habit-title">Non-Smoker</div>
+                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="former" onclick="selectHabit(this)">
+                    <div class="habit-icon">🛡️</div>
+                    <div class="habit-title">Former Smoker</div>
+                    <div class="habit-impact-tag impact-neg">-1.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="light" onclick="selectHabit(this)">
+                    <div class="habit-icon">💨</div>
+                    <div class="habit-title">Light (&lt;10/d)</div>
+                    <div class="habit-impact-tag impact-neg">-4.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="moderate" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚬</div>
+                    <div class="habit-title">Moderate (10-19)</div>
+                    <div class="habit-impact-tag impact-neg">-7.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="heavy" onclick="selectHabit(this)">
+                    <div class="habit-icon">⚠️</div>
+                    <div class="habit-title">Heavy (20+/d)</div>
+                    <div class="habit-impact-tag impact-neg">-10.0 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alcohol -->
+        <div style="margin-top: 1.5rem;">
+            <label>🍷 Alcohol Intake (Drinks / Week)</label>
+            <div class="habit-options" id="alcoholOptions">
+                <div class="habit-pill selected" data-factor="alcohol" data-val="none" onclick="selectHabit(this)">
+                    <div class="habit-icon">💧</div>
+                    <div class="habit-title">None / Rare (0-2)</div>
+                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="moderate" onclick="selectHabit(this)">
+                    <div class="habit-icon">🥂</div>
+                    <div class="habit-title">Moderate (3-7)</div>
+                    <div class="habit-impact-tag impact-zero">-0.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="heavy" onclick="selectHabit(this)">
+                    <div class="habit-icon">🍻</div>
+                    <div class="habit-title">Heavy (8-14)</div>
+                    <div class="habit-impact-tag impact-neg">-2.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="excessive" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚨</div>
+                    <div class="habit-title">Excessive (15+)</div>
+                    <div class="habit-impact-tag impact-neg">-5.0 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Physical Activity -->
+        <div style="margin-top: 1.5rem;">
+            <label>🏃 Physical Activity (WHO guidelines)</label>
+            <div class="habit-options" id="exerciseOptions">
+                <div class="habit-pill" data-factor="exercise" data-val="sedentary" onclick="selectHabit(this)">
+                    <div class="habit-icon">🛋️</div>
+                    <div class="habit-title">Sedentary (&lt;1h)</div>
+                    <div class="habit-impact-tag impact-neg">-2.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="exercise" data-val="light" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚶</div>
+                    <div class="habit-title">Light (1-2h)</div>
+                    <div class="habit-impact-tag impact-zero">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill selected" data-factor="exercise" data-val="active" onclick="selectHabit(this)">
+                    <div class="habit-icon">🚴</div>
+                    <div class="habit-title">Active (150m+)</div>
+                    <div class="habit-impact-tag impact-pos">+3.8 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="exercise" data-val="high" onclick="selectHabit(this)">
+                    <div class="habit-icon">🏋️</div>
+                    <div class="habit-title">Athlete (5h+)</div>
+                    <div class="habit-impact-tag impact-pos">+4.5 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- BMI -->
+        <div style="margin-top: 1.5rem;">
+            <label>⚖️ Body Mass Index (BMI)</label>
+            <div class="habit-options" id="bmiOptions">
+                <div class="habit-pill" data-factor="bmi" data-val="underweight" onclick="selectHabit(this)">
+                    <div class="habit-icon">📉</div>
+                    <div class="habit-title">Underweight (&lt;18.5)</div>
+                    <div class="habit-impact-tag impact-neg">-2.0 yrs</div>
+                </div>
+                <div class="habit-pill selected" data-factor="bmi" data-val="normal" onclick="selectHabit(this)">
+                    <div class="habit-icon">✨</div>
+                    <div class="habit-title">Normal (18.5-25)</div>
+                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="bmi" data-val="overweight" onclick="selectHabit(this)">
+                    <div class="habit-icon">⚖️</div>
+                    <div class="habit-title">Overweight (25-30)</div>
+                    <div class="habit-impact-tag impact-neg">-1.2 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="bmi" data-val="obese" onclick="selectHabit(this)">
+                    <div class="habit-icon">⚠️</div>
+                    <div class="habit-title">Obese (30+)</div>
+                    <div class="habit-impact-tag impact-neg">-4.0 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sleep -->
+        <div style="margin-top: 1.5rem;">
+            <label>😴 Sleep Duration</label>
+            <div class="habit-options" id="sleepOptions">
+                <div class="habit-pill" data-factor="sleep" data-val="deprived" onclick="selectHabit(this)">
+                    <div class="habit-icon">🌙</div>
+                    <div class="habit-title">Deprived (&lt;6h)</div>
+                    <div class="habit-impact-tag impact-neg">-2.2 yrs</div>
+                </div>
+                <div class="habit-pill selected" data-factor="sleep" data-val="optimal" onclick="selectHabit(this)">
+                    <div class="habit-icon">⭐</div>
+                    <div class="habit-title">Optimal (7-8h)</div>
+                    <div class="habit-impact-tag impact-pos">+1.2 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="sleep" data-val="excessive" onclick="selectHabit(this)">
+                    <div class="habit-icon">🛌</div>
+                    <div class="habit-title">Excessive (&gt;9h)</div>
+                    <div class="habit-impact-tag impact-neg">-1.0 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top:2.5rem;">
+            <button class="btn btn-outline" onclick="goToStep(2)">← Back</button>
+            <button class="btn btn-primary" onclick="calculateForecast()">Compute AI Longevity Model →</button>
+        </div>
+    </div>
+
+    <!-- STEP 4: Forecast Dashboard -->
+    <div class="glass-card step-content" id="step4">
+        <div class="result-hero">
+            <div style="font-size:0.85rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-muted);">
+                AI Predicted Personal Life Expectancy
+            </div>
+            <div class="expectancy-number" id="predictedAge">81.3</div>
+            <div>
+                <span class="delta-badge" id="deltaBadge" style="background:rgba(16,185,129,0.15); color:var(--accent-emerald);">
+                    +3.8 years vs national average
+                </span>
+            </div>
+            <div style="color:var(--text-secondary); margin-top:0.75rem; font-size:0.95rem;" id="remainingLifeText">
+                Approximately 56.3 years remaining based on your current age.
+            </div>
+        </div>
+
+        <h3 style="font-size: 1.25rem; margin-bottom: 0.75rem;">SHAP-style Feature Impact Attribution</h3>
+        <div style="background: rgba(0,0,0,0.25); border-radius: var(--radius-md); padding: 1.25rem;" id="breakdownContainer">
+            <!-- Dynamically populated -->
+        </div>
+
+        <!-- Actionable Recovery Interventions -->
+        <div id="recoveryBox" style="margin-top: 1.5rem; display:none; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:var(--radius-md); padding:1.25rem;">
+            <h4 style="font-size:0.95rem; color:var(--accent-emerald); margin-bottom:0.5rem;">Actionable Longevity Interventions:</h4>
+            <ul id="recoveryList" style="padding-left:1.25rem; font-size:0.88rem; color:var(--text-secondary); line-height:1.6;"></ul>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top:2rem;">
+            <button class="btn btn-outline" onclick="goToStep(3)">← Adjust Inputs</button>
+            <button class="btn btn-primary" onclick="goToStep(1)">Start Over ↺</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/d3.min.js"></script>
+<script src="/static/topojson-client.min.js"></script>
+<script>
+    let currentStep = 1;
+    let selectedDiseases = new Set();
+    let selectedHabits = {
+        smoking: 'never',
+        alcohol: 'none',
+        exercise: 'active',
+        bmi: 'normal',
+        sleep: 'optimal'
+    };
+    let currentCountryBaseline = 75.3;
+
+    // 3D Globe Implementation
+    let globeStats = {};
+    let worldFeatures = [];
+    let canvas, ctx, projection, pathGenerator;
+    let rotation = [25, -20];
+    let isDragging = false;
+    let dragStart = [0, 0];
+    let startRotation = [0, 0];
+    let autoSpin = true;
+    let hoveredCountry = null;
+    let selectedCountryFeature = null;
+    const globeRadius = 205;
+
+    async function initGlobe() {
+        canvas = document.getElementById('globeCanvas');
+        if (!canvas) return;
+        ctx = canvas.getContext('2d');
+
+        projection = d3.geoOrthographic()
+            .scale(globeRadius)
+            .translate([canvas.width / 2, canvas.height / 2])
+            .clipAngle(90)
+            .precision(0.3);
+
+        pathGenerator = d3.geoPath(projection, ctx);
+
+        try {
+            const [worldData, statsData] = await Promise.all([
+                d3.json('/static/world-110m.json'),
+                d3.json('/api/globe/countries-stats')
+            ]);
+            globeStats = statsData || {};
+            worldFeatures = topojson.feature(worldData, worldData.objects.countries).features;
+
+            worldFeatures.forEach(f => {
+                f.stats = globeStats[f.id] || globeStats[f.properties?.name] || null;
+            });
+
+            const selIso3 = document.getElementById('countrySelect').value || 'ROU';
+            selectCountryByIso3(selIso3, false);
+
+            setupGlobeEvents();
+            animateGlobe();
+        } catch (err) {
+            console.error('Failed to initialize 3D Globe:', err);
+        }
+    }
+
+    function getLifeExpColor(val, isHover, isSel) {
+        if (isSel) return '#38bdf8';
+        if (isHover) return '#7dd3fc';
+        if (!val) return '#1e293b';
+        if (val >= 80) return '#06b6d4';
+        if (val >= 75) return '#3b82f6';
+        if (val >= 70) return '#f59e0b';
+        return '#f43f5e';
+    }
+
+    function renderGlobe() {
+        if (!ctx || !projection) return;
+        const w = canvas.width;
+        const h = canvas.height;
+
+        projection.rotate(rotation);
+        ctx.clearRect(0, 0, w, h);
+
+        // 1. Deep Ocean Sphere
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, globeRadius, 0, 2 * Math.PI);
+        const oceanGrad = ctx.createRadialGradient(w/2 - 40, h/2 - 40, 40, w/2, h/2, globeRadius);
+        oceanGrad.addColorStop(0, '#0f172a');
+        oceanGrad.addColorStop(1, '#070b14');
+        ctx.fillStyle = oceanGrad;
+        ctx.fill();
+
+        // 2. Countries
+        worldFeatures.forEach(feature => {
+            const isHover = (hoveredCountry && hoveredCountry.id === feature.id);
+            const isSel = (selectedCountryFeature && selectedCountryFeature.id === feature.id);
+            const val = feature.stats ? feature.stats.life_expectancy : null;
+
+            ctx.beginPath();
+            pathGenerator(feature);
+            ctx.fillStyle = getLifeExpColor(val, isHover, isSel);
+            ctx.fill();
+
+            ctx.strokeStyle = isSel ? '#ffffff' : (isHover ? '#38bdf8' : 'rgba(255, 255, 255, 0.12)');
+            ctx.lineWidth = isSel ? 2 : (isHover ? 1.5 : 0.6);
+            ctx.stroke();
+        });
+
+        // 3. Globe Edge Highlight
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, globeRadius, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+    }
+
+    function animateGlobe() {
+        if (autoSpin && !isDragging) {
+            rotation[0] += 0.2;
+            renderGlobe();
+        }
+        requestAnimationFrame(animateGlobe);
+    }
+
+    function setupGlobeEvents() {
+        const tooltip = document.getElementById('globeTooltip');
+
+        canvas.addEventListener('mousedown', e => {
+            isDragging = true;
+            autoSpin = false;
+            dragStart = [e.clientX, e.clientY];
+            startRotation = [rotation[0], rotation[1]];
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (isDragging) {
+                const dx = e.clientX - dragStart[0];
+                const dy = e.clientY - dragStart[1];
+                rotation[0] = startRotation[0] + dx * 0.4;
+                rotation[1] = Math.max(-80, Math.min(80, startRotation[1] - dy * 0.4));
+                renderGlobe();
+                tooltip.style.display = 'none';
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (mouseX < 0 || mouseX > canvas.width || mouseY < 0 || mouseY > canvas.height) {
+                if (hoveredCountry) {
+                    hoveredCountry = null;
+                    renderGlobe();
+                }
+                tooltip.style.display = 'none';
+                return;
+            }
+
+            const geoCoord = projection.invert([mouseX, mouseY]);
+            if (geoCoord && !isNaN(geoCoord[0])) {
+                let found = null;
+                for (let f of worldFeatures) {
+                    if (d3.geoContains(f, geoCoord)) {
+                        found = f;
+                        break;
+                    }
+                }
+
+                if (found !== hoveredCountry) {
+                    hoveredCountry = found;
+                    renderGlobe();
+                }
+
+                if (found && found.stats) {
+                    document.getElementById('ttCountryName').innerText = `${found.stats.name} (${found.stats.iso3})`;
+                    document.getElementById('ttRegion').innerText = `${found.stats.region || 'Global'} · ${found.stats.income_group || ''}`;
+                    document.getElementById('ttLifeExp').innerText = found.stats.life_expectancy.toFixed(1);
+                    
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${mouseX}px`;
+                    tooltip.style.top = `${mouseY}px`;
+                } else if (found) {
+                    document.getElementById('ttCountryName').innerText = found.properties?.name || 'Unknown';
+                    document.getElementById('ttRegion').innerText = 'Data available';
+                    document.getElementById('ttLifeExp').innerText = '--';
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${mouseX}px`;
+                    tooltip.style.top = `${mouseY}px`;
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            } else {
+                if (hoveredCountry) {
+                    hoveredCountry = null;
+                    renderGlobe();
+                }
+                tooltip.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                setTimeout(() => { if (!isDragging) autoSpin = true; }, 3000);
+            }
+        });
+
+        canvas.addEventListener('click', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const geoCoord = projection.invert([mouseX, mouseY]);
+
+            if (geoCoord && !isNaN(geoCoord[0])) {
+                for (let f of worldFeatures) {
+                    if (d3.geoContains(f, geoCoord)) {
+                        if (f.stats && f.stats.iso3) {
+                            selectCountryByIso3(f.stats.iso3, true);
+                        }
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    function selectCountryByIso3(iso3, centerGlobe) {
+        const select = document.getElementById('countrySelect');
+        if (select) select.value = iso3;
+
+        selectedCountryFeature = worldFeatures.find(f => (f.stats && f.stats.iso3 === iso3));
+
+        if (centerGlobe && selectedCountryFeature) {
+            const centroid = d3.geoCentroid(selectedCountryFeature);
+            if (centroid && !isNaN(centroid[0])) {
+                rotation = [-centroid[0], -centroid[1]];
+            }
+        }
+
+        renderGlobe();
+        onCountryChanged();
+    }
+
+    function onCountryDropdownSelected() {
+        const iso3 = document.getElementById('countrySelect').value;
+        selectCountryByIso3(iso3, true);
+    }
+
+    function goToStep(step) {
+        currentStep = step;
+        document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+        document.getElementById(`step${step}`).classList.add('active');
+
+        for (let i = 1; i <= 4; i++) {
+            const ind = document.getElementById(`stepIndicator${i}`);
+            ind.classList.remove('active', 'completed');
+            if (i === step) ind.classList.add('active');
+            else if (i < step) ind.classList.add('completed');
+        }
+        window.scrollTo({ top: 100, behavior: 'smooth' });
+    }
+
+    function toggleDisease(el) {
+        const key = el.getAttribute('data-disease');
+        if (selectedDiseases.has(key)) {
+            selectedDiseases.delete(key);
+            el.classList.remove('selected');
+        } else {
+            selectedDiseases.add(key);
+            el.classList.add('selected');
+        }
+    }
+
+    function selectHabit(el) {
+        const factor = el.getAttribute('data-factor');
+        const val = el.getAttribute('data-val');
+        selectedHabits[factor] = val;
+
+        const container = el.parentElement;
+        container.querySelectorAll('.habit-pill').forEach(p => p.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    async function onCountryChanged() {
+        const countryIso3 = document.getElementById('countrySelect').value;
+        const sex = document.getElementById('biologicalSex').value;
+        if (!countryIso3) return;
+
+        try {
+            const res = await fetch(`/api/country/${countryIso3}/baseline?sex=${sex}`);
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('previewCountryName').innerText = data.name;
+                document.getElementById('previewRegion').innerText = `${data.region || 'Global'} · ${data.income_group || 'Standard'}`;
+                currentCountryBaseline = data.life_expectancy || 75.0;
+                document.getElementById('previewLifeExpectancy').innerText = currentCountryBaseline.toFixed(1);
+                document.getElementById('syncYearText').innerText = `Ref Year: ${data.reference_year || 2021}`;
+                document.getElementById('syncSourceText').innerText = `Data source: ${data.source}`;
+            }
+        } catch (err) {
+            console.error('Error fetching country baseline:', err);
+        }
+    }
+
+    async function triggerLiveSync() {
+        const countryIso3 = document.getElementById('countrySelect').value;
+        const syncText = document.getElementById('syncSourceText');
+        syncText.innerText = "⚡ Fetching live data from WHO and World Bank APIs...";
+
+        try {
+            const res = await fetch(`/api/pipeline/sync-country/${countryIso3}`, { method: 'POST' });
+            if (res.ok) {
+                const data = await res.json();
+                syncText.innerText = `✅ Live Sync successful (${data.source || 'WHO/WB'})`;
+                await onCountryChanged();
+            }
+        } catch (e) {
+            syncText.innerText = "⚠️ Live sync error, using cached warehouse data.";
+        }
+    }
+
+    async function calculateForecast() {
+        const countryIso3 = document.getElementById('countrySelect').value || 'ROU';
+        const age = parseInt(document.getElementById('userAge').value) || 25;
+        const sex = document.getElementById('biologicalSex').value || 'BTSX';
+
+        const payload = {
+            country_iso3: countryIso3,
+            current_age: age,
+            sex: sex,
+            chronic_diseases: Array.from(selectedDiseases),
+            smoking: selectedHabits.smoking,
+            alcohol: selectedHabits.alcohol,
+            exercise: selectedHabits.exercise,
+            bmi: selectedHabits.bmi,
+            sleep: selectedHabits.sleep
+        };
+
+        try {
+            const res = await fetch('/api/calculator/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const result = await res.json();
+                renderResults(result);
+                goToStep(4);
+            }
+        } catch (err) {
+            console.error('Calculation error:', err);
+        }
+    }
+
+    function renderResults(data) {
+        document.getElementById('predictedAge').innerText = data.predicted_life_expectancy.toFixed(1);
+
+        const delta = data.net_total_impact;
+        const deltaBadge = document.getElementById('deltaBadge');
+        if (delta >= 0) {
+            deltaBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+            deltaBadge.style.color = 'var(--accent-emerald)';
+            deltaBadge.innerText = `+${delta.toFixed(1)} years vs national average`;
+        } else {
+            deltaBadge.style.background = 'rgba(244, 63, 94, 0.15)';
+            deltaBadge.style.color = 'var(--accent-rose)';
+            deltaBadge.innerText = `${delta.toFixed(1)} years vs national average`;
+        }
+
+        document.getElementById('remainingLifeText').innerText = 
+            `Approximately ${data.years_remaining.toFixed(1)} years remaining based on your current age of ${data.current_age}.`;
+
+        const container = document.getElementById('breakdownContainer');
+        container.innerHTML = '';
+
+        data.feature_contributions.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'breakdown-row';
+
+            let deltaText = '';
+            let color = 'var(--text-muted)';
+            if (item.type === 'baseline') {
+                deltaText = `${item.value.toFixed(1)} yrs`;
+                color = '#fff';
+            } else if (item.delta > 0) {
+                deltaText = `+${item.delta.toFixed(1)} yrs`;
+                color = 'var(--accent-emerald)';
+            } else if (item.delta < 0) {
+                deltaText = `${item.delta.toFixed(1)} yrs`;
+                color = 'var(--accent-rose)';
+            } else {
+                deltaText = '0.0 yrs';
+            }
+
+            row.innerHTML = `
+                <div style="font-weight:600; color:#fff;">${item.feature}</div>
+                <div style="font-family:'Outfit', sans-serif; font-weight:700; color:${color};">${deltaText}</div>
+            `;
+            container.appendChild(row);
+        });
+
+        const recoveryBox = document.getElementById('recoveryBox');
+        const recoveryList = document.getElementById('recoveryList');
+        recoveryList.innerHTML = '';
+        if (data.potential_recoveries && data.potential_recoveries.length > 0) {
+            recoveryBox.style.display = 'block';
+            data.potential_recoveries.forEach(rec => {
+                const li = document.createElement('li');
+                li.innerText = rec;
+                recoveryList.appendChild(li);
+            });
+        } else {
+            recoveryBox.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        initGlobe();
+    });
+</script>
+{% endblock %}

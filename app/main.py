@@ -5,14 +5,20 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
+from fastapi.staticfiles import StaticFiles
+import pycountry
+
 from app.database import get_db
 from app.models import Country, Indicator, Observation, Source
 
 app = FastAPI(
-    title="Global Health Data Platform",
-    description="Lab 1: Global Health Data Platform - Data Ingestion and Warehouse for Life Expectancy and Behavioral Risk Factors",
-    version="1.0.0",
+    title="Vitalis - Global Health & Longevity Platform",
+    description="Real-time Global Health Data Platform and Chronic Disease / Lifestyle Longevity Calculator using WHO & World Bank APIs.",
+    version="1.3.0",
 )
+
+# Mount static files for local D3, TopoJSON, and World Atlas
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
 
@@ -121,6 +127,144 @@ def get_countries_api(db: Session = Depends(get_db)):
     return db.query(Country).order_by(Country.name).all()
 
 
-@app.get("/api/indicators")
-def get_indicators_api(db: Session = Depends(get_db)):
-    return db.query(Indicator).order_by(Indicator.name).all()
+@app.get("/api/chronic-diseases")
+def get_chronic_diseases():
+    return CHRONIC_DISEASE_IMPACTS
+
+
+@app.get("/api/globe/countries-stats")
+def get_globe_countries_stats(db: Session = Depends(get_db)):
+    """
+    Returns country longevity statistics keyed by both ISO3 and numeric country IDs
+    for fast 3D globe rendering, choropleth shading, and interactive hover tooltips.
+    """
+    sub = (
+        db.query(
+            Observation.country_iso3,
+            func.max(Observation.year).label("max_year")
+        )
+        .join(Indicator)
+        .filter(Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]))
+        .group_by(Observation.country_iso3)
+        .subquery()
+    )
+
+    rows = (
+        db.query(
+            Country.iso3,
+            Country.name,
+            Country.region,
+            Country.income_group,
+            Observation.value,
+            Observation.year
+        )
+        .join(Country, Observation.country_iso3 == Country.iso3)
+        .join(Indicator, Observation.indicator_id == Indicator.indicator_id)
+        .join(sub, (Observation.country_iso3 == sub.c.country_iso3) & (Observation.year == sub.c.max_year))
+        .filter(Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]))
+        .filter(Observation.sex == "BTSX")
+        .all()
+    )
+
+    stats = {}
+    for r in rows:
+        val = float(r.value)
+        num_code = None
+        try:
+            c = pycountry.countries.get(alpha_3=r.iso3)
+            if c and hasattr(c, "numeric"):
+                num_code = str(int(c.numeric))
+        except Exception:
+            pass
+
+        entry = {
+            "iso3": r.iso3,
+            "name": r.name,
+            "region": r.region,
+            "income_group": r.income_group,
+            "life_expectancy": round(val, 1),
+            "year": r.year,
+        }
+        stats[r.iso3] = entry
+        if num_code:
+            stats[num_code] = entry
+
+    return stats
+
+
+@app.post("/api/pipeline/sync-country/{iso3}")
+def live_sync_country(iso3: str):
+    """Real-time pipeline trigger: fetches live data from WHO/World Bank and updates database."""
+    sync_result = sync_country_realtime(iso3)
+    return sync_result
+
+
+@app.get("/api/country/{iso3}/baseline")
+def get_country_baseline(iso3: str, sex: str = "BTSX", live_sync: bool = False, db: Session = Depends(get_db)):
+    if live_sync:
+        sync_country_realtime(iso3)
+
+    country = db.query(Country).filter(Country.iso3 == iso3.upper()).first()
+    if not country:
+        return JSONResponse(status_code=404, content={"error": f"Country {iso3} not found"})
+
+    obs = (
+        db.query(Observation)
+        .join(Indicator)
+        .filter(
+            Observation.country_iso3 == country.iso3,
+            Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]),
+            Observation.sex.in_([sex, "BTSX"]),
+        )
+        .order_by(desc(Observation.year))
+        .first()
+    )
+
+    baseline_val = float(obs.value) if obs and obs.value else 74.0
+
+    return {
+        "iso3": country.iso3,
+        "name": country.name,
+        "region": country.region,
+        "income_group": country.income_group,
+        "life_expectancy": baseline_val,
+        "reference_year": obs.year if obs else 2019,
+        "source": "PostgreSQL Data Warehouse (Verified)",
+    }
+
+
+@app.post("/api/calculator/evaluate")
+def evaluate_life_expectancy(req: CalculatorRequest, db: Session = Depends(get_db)):
+    country = db.query(Country).filter(Country.iso3 == req.country_iso3.upper()).first()
+    country_name = country.name if country else req.country_iso3
+
+    obs = (
+        db.query(Observation)
+        .join(Indicator)
+        .filter(
+            Observation.country_iso3 == req.country_iso3.upper(),
+            Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]),
+            Observation.sex.in_([req.sex, "BTSX"]),
+        )
+        .order_by(desc(Observation.year))
+        .first()
+    )
+
+    baseline_le = float(obs.value) if obs and obs.value else 74.0
+
+    # Call AI / ML Longevity Algorithm with Chronic Diseases and Habits
+    forecast = predict_longevity(
+        country_iso3=req.country_iso3,
+        country_name=country_name,
+        baseline_life_expectancy=baseline_le,
+        current_age=req.current_age,
+        sex=req.sex,
+        chronic_diseases=req.chronic_diseases,
+        smoking=req.smoking,
+        alcohol=req.alcohol,
+        exercise=req.exercise,
+        bmi=req.bmi,
+        sleep=req.sleep,
+    )
+
+    return forecast

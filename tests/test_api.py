@@ -7,7 +7,15 @@ client = TestClient(app)
 def test_root_redirect():
     response = client.get("/", follow_redirects=False)
     assert response.status_code in [302, 307]
-    assert response.headers["location"] == "/observations"
+    assert response.headers["location"] == "/calculator"
+
+
+def test_calculator_page():
+    response = client.get("/calculator")
+    assert response.status_code == 200
+    assert "AI Longevity" in response.text
+    assert "Step 1:" in response.text
+    assert "Step 2: Chronic Medical Conditions" in response.text
 
 
 def test_observations_page():
