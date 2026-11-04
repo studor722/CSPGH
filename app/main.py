@@ -1,18 +1,22 @@
-from typing import Optional, List
-from fastapi import FastAPI, Depends, Request, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from decimal import Decimal
+from typing import Optional, List, Dict, Any
+from fastapi import FastAPI, Depends, Request, Query, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import func, desc
 
 from fastapi.staticfiles import StaticFiles
 import pycountry
 
 from app.database import get_db
 from app.models import Country, Indicator, Observation, Source
+from app.ml_model import predict_longevity, CHRONIC_DISEASE_IMPACTS, HABIT_IMPACTS
+from etl.realtime_pipeline import sync_country_realtime
 
 app = FastAPI(
-    title="Vitalis - Global Health & Longevity Platform",
+    title="Global Health Data Platform & Life Expectancy Calculator",
     description="Real-time Global Health Data Platform and Chronic Disease / Lifestyle Longevity Calculator using WHO & World Bank APIs.",
     version="1.3.0",
 )
@@ -23,9 +27,35 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
 
+class CalculatorRequest(BaseModel):
+    country_iso3: str = Field(default="USA", examples=["USA"])
+    current_age: int = Field(default=28, ge=1, le=110)
+    sex: str = Field(default="BTSX", examples=["BTSX"])
+    chronic_diseases: List[str] = Field(default_factory=list, examples=[["cardiovascular", "hypertension"]])
+    smoking: str = Field(default="never", examples=["never"])
+    alcohol: str = Field(default="none", examples=["none"])
+    exercise: str = Field(default="active", examples=["active"])
+    bmi: str = Field(default="normal", examples=["normal"])
+    sleep: str = Field(default="optimal", examples=["optimal"])
+
+
 @app.get("/", response_class=RedirectResponse)
 def root():
-    return RedirectResponse(url="/observations")
+    return RedirectResponse(url="/calculator")
+
+
+@app.get("/calculator", response_class=HTMLResponse)
+def calculator_page(request: Request, db: Session = Depends(get_db)):
+    countries = db.query(Country).order_by(Country.name).all()
+    return templates.TemplateResponse(
+        request=request,
+        name="calculator.html",
+        context={
+            "active_page": "calculator",
+            "countries": countries,
+            "chronic_diseases": CHRONIC_DISEASE_IMPACTS,
+        },
+    )
 
 
 @app.get("/observations", response_class=HTMLResponse)
@@ -45,6 +75,7 @@ def observations_page(
             Observation.year,
             Observation.sex,
             Observation.value,
+            Observation.is_outlier,
         )
         .join(Country, Observation.country_iso3 == Country.iso3)
         .join(Indicator, Observation.indicator_id == Indicator.indicator_id)
@@ -94,6 +125,7 @@ def get_observations_api(
             Observation.year,
             Observation.sex,
             Observation.value,
+            Observation.is_outlier,
         )
         .join(Country, Observation.country_iso3 == Country.iso3)
         .join(Indicator, Observation.indicator_id == Indicator.indicator_id)
@@ -125,6 +157,11 @@ def get_observations_api(
 @app.get("/api/countries")
 def get_countries_api(db: Session = Depends(get_db)):
     return db.query(Country).order_by(Country.name).all()
+
+
+@app.get("/api/indicators")
+def get_indicators_api(db: Session = Depends(get_db)):
+    return db.query(Indicator).order_by(Indicator.name).all()
 
 
 @app.get("/api/chronic-diseases")

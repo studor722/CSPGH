@@ -1,9 +1,28 @@
+# Environment & Secrets
 .venv/
 .env
+
+# Raw data downloads (never commit per Lab 2 instructions)
 data/raw/
+
+# Byte-compiled / cache / logs
 __pycache__/
 *.pyc
 .pytest_cache/
-.ipynb_checkpoints/
 *.egg-info/
 .DS_Store
+
+# Jupyter checkpoints & scratchpads
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+scratch/
+
+# IDE & AI assistant metadata
+.vscode/
+.idea/
+.cursor/
+.antigravity/
+.gemini/
+
+# PDF files (lab reports / handouts submitted separately)
+*.pdf
