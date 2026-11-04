@@ -1,129 +1,90 @@
-from typing import Dict, Optional
 import pandas as pd
-from sqlalchemy import text
-from app.database import engine, SessionLocal
-from app.models import Source, Country, Indicator, Observation, ImportLog
+from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session
+
+from app.models import Country, ImportLog, Indicator, Observation, Source
 
 
-def load_sources() -> Dict[str, int]:
-    """
-    Ensure core sources exist and return dict mapping source name to source_id.
-    """
-    default_sources = [
-        {"name": "WHO GHO", "url": "https://ghoapi.azureedge.net/api"},
-        {"name": "World Bank", "url": "https://api.worldbank.org/v2"},
-        {"name": "Our World in Data", "url": "https://ourworldindata.org"},
-    ]
+def get_or_create_source(session: Session, name: str, url: str) -> int:
+    source = session.scalar(select(Source).where(Source.name == name))
+    if source is None:
+        source = Source(name=name, url=url)
+        session.add(source)
+        session.flush()
 
-    source_map = {}
-    with SessionLocal() as db:
-        for s in default_sources:
-            existing = db.query(Source).filter(Source.name == s["name"]).first()
-            if not existing:
-                src_obj = Source(name=s["name"], url=s["url"])
-                db.add(src_obj)
-                db.commit()
-                db.refresh(src_obj)
-                source_map[s["name"]] = src_obj.source_id
-            else:
-                source_map[s["name"]] = existing.source_id
-
-    return source_map
-
-
-def load_countries(df_countries: pd.DataFrame) -> int:
-    """
-    Upsert countries into country dimension table.
-    """
-    if df_countries.empty:
-        return 0
-
-    inserted_count = 0
-    upsert_sql = text("""
-        INSERT INTO country (iso3, iso2, name, region, income_group)
-        VALUES (:iso3, :iso2, :name, :region, :income_group)
-        ON CONFLICT (iso3) DO UPDATE SET
-            iso2 = EXCLUDED.iso2,
-            name = EXCLUDED.name,
-            region = EXCLUDED.region,
-            income_group = EXCLUDED.income_group;
-    """)
-
-    with engine.begin() as conn:
-        records = df_countries.to_dict(orient="records")
-        conn.execute(upsert_sql, records)
-        inserted_count = len(records)
-
-    return inserted_count
+    return source.source_id
 
 
 def get_or_create_indicator(
-    code: str, name: str, unit: Optional[str], source_id: int
+    session: Session, code: str, name: str, unit: str, source_id: int
 ) -> int:
-    """
-    Get or create indicator record and return indicator_id.
-    """
-    with SessionLocal() as db:
-        ind = db.query(Indicator).filter(Indicator.code == code).first()
-        if not ind:
-            ind = Indicator(code=code, name=name, unit=unit, source_id=source_id)
-            db.add(ind)
-            db.commit()
-            db.refresh(ind)
-        return ind.indicator_id
+    indicator = session.scalar(select(Indicator).where(Indicator.code == code))
+    if indicator is None:
+        indicator = Indicator(code=code, name=name, unit=unit, source_id=source_id)
+        session.add(indicator)
+        session.flush()
+
+    return indicator.indicator_id
 
 
-def load_observations(
-    df: pd.DataFrame,
+def upsert_countries(session: Session, countries: pd.DataFrame) -> None:
+    if countries.empty:
+        return
+
+    stmt = insert(Country).values(countries.to_dict("records"))
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["iso3"],
+        set_={
+            col: stmt.excluded[col]
+            for col in ("iso2", "name", "region", "income_group")
+        },
+    )
+    session.execute(stmt)
+
+
+def upsert_observations(
+    session: Session,
+    observations: pd.DataFrame,
     indicator_id: int,
-    source_name: str,
-    indicator_code: str,
-    source_url: str
+    chunk_size: int = 5000,
 ) -> int:
-    """
-    Load observation rows with ON CONFLICT upsert, and write an audit record to import_log.
-    """
-    if df.empty:
+    if observations.empty:
         return 0
 
-    if "age_group" not in df.columns:
-        df["age_group"] = "ALL"
-    if "sex" not in df.columns:
-        df["sex"] = "BTSX"
-
-    upsert_sql = text("""
-        INSERT INTO observation (country_iso3, indicator_id, year, sex, age_group, value)
-        VALUES (:country_iso3, :indicator_id, :year, :sex, :age_group, :value)
-        ON CONFLICT ON CONSTRAINT uq_observation DO UPDATE SET
-            value = EXCLUDED.value,
-            imported_at = now();
-    """)
-
-    params = []
-    for _, row in df.iterrows():
-        params.append({
-            "country_iso3": str(row["country_iso3"]),
-            "indicator_id": indicator_id,
-            "year": int(row["year"]),
-            "sex": str(row["sex"]),
-            "age_group": str(row["age_group"]),
-            "value": float(row["value"]),
-        })
-
-    with engine.begin() as conn:
-        conn.execute(upsert_sql, params)
-        # Log into import_log table
-        conn.execute(
-            text("""
-                INSERT INTO import_log (source_name, indicator_code, url, rows_loaded)
-                VALUES (:source_name, :indicator_code, :url, :rows_loaded);
-            """),
-            {
-                "source_name": source_name,
-                "indicator_code": indicator_code,
-                "url": source_url,
-                "rows_loaded": len(params),
-            }
+    # observation table has indicator_id (FK), not indicator_code (string)
+    rows = (
+        observations.drop(columns=["indicator_code"])
+        .assign(indicator_id=indicator_id)
+        .to_dict("records")
+    )
+    for start in range(0, len(rows), chunk_size):
+        stmt = insert(Observation).values(rows[start : start + chunk_size])
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_observation",
+            set_={
+                "value": stmt.excluded.value,
+                "is_outlier": stmt.excluded.is_outlier,
+                "imported_at": func.now(),
+            },
         )
+        session.execute(stmt)
 
-    return len(params)
+    return len(rows)
+
+
+def log_import(
+    session: Session,
+    source_name: str,
+    indicator_code: str,
+    url: str,
+    rows_loaded: int,
+) -> None:
+    session.add(
+        ImportLog(
+            source_name=source_name,
+            indicator_code=indicator_code,
+            url=url,
+            rows_loaded=rows_loaded,
+        )
+    )
