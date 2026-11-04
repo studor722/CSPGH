@@ -9,7 +9,7 @@
         Sovereign demographic and public health indicators harvested from WHO Global Health Observatory, World Bank, and Our World in Data.
     </p>
 
-    <form method="get" action="/observations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 120px; gap: 0.85rem; align-items: end;">
+    <form method="get" action="/observations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 110px 90px; gap: 0.85rem; align-items: end;">
         <div>
             <label>Country</label>
             <select name="country_iso3" class="form-control">
@@ -35,23 +35,41 @@
         </div>
 
         <div>
-            <label>Year</label>
-            <input type="number" name="year" class="form-control" placeholder="e.g. 2019" value="{{ selected_year or '' }}">
+            <label>Calendar Year <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(2000–2024)</span></label>
+            <input type="number" name="year" class="form-control" placeholder="e.g. 2024" min="1950" max="2030" value="{{ selected_year }}">
+        </div>
+
+        <div>
+            <label>IQR Outlier</label>
+            <select name="is_outlier" class="form-control">
+                <option value="">All Values</option>
+                <option value="true" {% if selected_outlier == 'true' %}selected{% endif %}>Only Outliers</option>
+                <option value="false" {% if selected_outlier == 'false' %}selected{% endif %}>Normal Only</option>
+            </select>
         </div>
 
         <button type="submit" class="btn btn-primary" style="height: 38px;">
             Filter
         </button>
+
+        <a href="/observations" class="btn btn-secondary" style="height: 38px; display: inline-flex; align-items: center; justify-content: center;">
+            Reset
+        </a>
     </form>
 </div>
 
 <div class="ui-card">
-    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
         <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">
             Showing {{ observations|length }} observations
+            {% if selected_outlier == 'true' %}
+            <span style="font-size: 0.75rem; background: rgba(255, 149, 0, 0.15); color: var(--accent-orange); padding: 2px 8px; border-radius: 999px; margin-left: 0.5rem;">
+                Filtered to Outliers
+            </span>
+            {% endif %}
         </div>
         <div style="font-size: 0.78rem; color: var(--text-muted);">
-            PostgreSQL <code>observation</code> warehouse table
+            PostgreSQL <code>observation</code> warehouse table (Limit 100)
         </div>
     </div>
 
@@ -65,7 +83,7 @@
                     <th style="padding: 0.65rem 0.5rem;">Sex</th>
                     <th style="padding: 0.65rem 0.5rem; text-align: right;">Value</th>
                     <th style="padding: 0.65rem 0.5rem;">Unit</th>
-                    <th style="padding: 0.65rem 0.5rem; text-align: center;">IQR Outlier</th>
+                    <th style="padding: 0.65rem 0.5rem; text-align: center;">IQR Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -74,37 +92,64 @@
                     <td style="padding: 0.65rem 0.5rem; font-weight: 500; color: var(--text-primary);">
                         {{ o.country_name }} <span style="color: var(--text-muted); font-size: 0.78rem;">{{ o.country_iso3 }}</span>
                     </td>
-                    <td style="padding: 0.65rem 0.5rem; color: var(--text-secondary);">
+                    <td style="padding: 0.65rem 0.5rem; color: var(--text-secondary); max-width: 320px;">
                         {{ o.indicator_name }}
                     </td>
-                    <td style="padding: 0.65rem 0.5rem; color: var(--text-primary); font-variant-numeric: tabular-nums;">
+                    <td style="padding: 0.65rem 0.5rem; font-variant-numeric: tabular-nums;">
                         {{ o.year }}
                     </td>
-                    <td style="padding: 0.65rem 0.5rem;">
-                        <span style="font-size: 0.72rem; padding: 0.15rem 0.45rem; border-radius: 4px; background: var(--bg-control); color: var(--text-secondary); font-weight: 500;">
-                            {{ o.sex }}
-                        </span>
+                    <td style="padding: 0.65rem 0.5rem; color: var(--text-muted); font-size: 0.8rem;">
+                        {{ o.sex }}
                     </td>
-                    <td style="padding: 0.65rem 0.5rem; text-align: right; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums;">
-                        {{ "%.2f"|format(o.value) if o.value is not none else "N/A" }}
+                    <td style="padding: 0.65rem 0.5rem; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-primary);">
+                        {{ "%.2f"|format(o.value) if o.value is not none else "—" }}
                     </td>
                     <td style="padding: 0.65rem 0.5rem; color: var(--text-muted); font-size: 0.78rem;">
                         {{ o.unit or '' }}
                     </td>
                     <td style="padding: 0.65rem 0.5rem; text-align: center;">
                         {% if o.is_outlier %}
-                        <span style="font-size: 0.7rem; padding: 0.15rem 0.45rem; border-radius: 4px; background: rgba(255, 149, 0, 0.12); color: var(--accent-orange); font-weight: 600;">
+                        <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.72rem; font-weight: 600; background: rgba(255, 149, 0, 0.14); color: var(--accent-orange);">
                             Outlier
                         </span>
                         {% else %}
-                        <span style="font-size: 0.7rem; color: var(--text-muted);">Normal</span>
+                        <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.72rem; font-weight: 500; background: rgba(52, 199, 89, 0.12); color: var(--accent-green);">
+                            Normal
+                        </span>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="padding: 2.5rem; text-align: center; color: var(--text-muted);">
-                        No observations found matching the selected filters.
+                    <td colspan="7" style="text-align: center; padding: 2.5rem 1.5rem;">
+                        <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">🔍</div>
+                        <div style="font-weight: 600; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.35rem;">
+                            No observations matched the specified filter criteria
+                        </div>
+                        {% if selected_year and available_years_info %}
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 580px; margin: 0 auto 1.25rem auto; line-height: 1.5;">
+                            You searched for calendar year <b style="color:var(--text-primary);">{{ selected_year }}</b>. Surveillance records in the database for this indicator span from 
+                            <b style="color:var(--accent-blue);">{{ available_years_info.min_year }}</b> to <b style="color:var(--accent-green);">{{ available_years_info.max_year }}</b> ({{ available_years_info.total_count }} observations recorded). WHO Global Health Observatory reports are published with a 1–2 year surveillance reporting lag.
+                        </p>
+                        <div style="display: flex; gap: 0.65rem; justify-content: center; flex-wrap: wrap;">
+                            <a href="/observations?country_iso3={{ selected_country }}&indicator_code={{ selected_indicator }}&year={{ available_years_info.max_year }}" class="btn btn-primary" style="font-size: 0.82rem; padding: 6px 14px;">
+                                View Latest Data ({{ available_years_info.max_year }})
+                            </a>
+                            <a href="/observations?country_iso3={{ selected_country }}&indicator_code={{ selected_indicator }}" class="btn btn-secondary" style="font-size: 0.82rem; padding: 6px 14px;">
+                                View All Years ({{ available_years_info.total_count }} Records)
+                            </a>
+                            <a href="/observations" class="btn btn-outline" style="font-size: 0.82rem; padding: 6px 14px;">
+                                Reset All Filters
+                            </a>
+                        </div>
+                        {% else %}
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto 1rem auto;">
+                            Try selecting "All Countries" or clearing the Year filter to view broader global observations.
+                        </p>
+                        <a href="/observations" class="btn btn-secondary" style="font-size: 0.82rem; padding: 6px 14px; display: inline-block;">
+                            Reset Filters
+                        </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

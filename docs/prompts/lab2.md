@@ -158,3 +158,29 @@ This document logs the step-by-step prompts sent to Gemini 3.8 Flash to complete
 - **Your changes:**
   - Added an outlier filter pill in the observations table so users can filter exclusively for flagged rows.
   - Ran `pytest tests/` to confirm that the changes did not break any of the 6 automated API tests.
+
+
+---
+
+## Prompt 8 – Longevity Prediction Engine & Warehouse Query API
+- **Tool and model:** Gemini 3.8 Flash
+- **Date:** 2026-11-04
+- **Prompt:**
+  > "I need to finalize Lab 2 and connect the database warehouse to our frontend and API:
+  > 1. In `app/main.py`, make query parameter parsing robust for `year`, `country_iso3`, `indicator_code`, and `is_outlier`. Also handle two-digit year inputs (e.g. 24 -> 2024).
+  > 2. On `/observations`, when a filter returns 0 observations, provide helpful guidance on available surveillance years (2000–2024) and quick links.
+  > 3. In `app/ml_model.py`, build the personalized longevity model: healthy baseline, chronic & genetic condition hazard ratios with multimorbidity attenuation, and lifestyle modifications (diet, exercise, smoking, sleep).
+  > 4. In `app/templates/calculator.html`, display the interactive 3D globe with country life expectancy hover, medical condition search, and a 'Life in Weeks' matrix.
+  > Can you help me tie this together cleanly?"
+- **Result:**
+  - `app/main.py`: Added safe query parameter parsing, two-digit year normalization, and country/indicator available year hints.
+  - `app/ml_model.py`: Implemented longevity estimation algorithm with clinical hazard curves, multimorbidity attenuation, and life horizon units (months, weeks, days).
+  - `app/templates/calculator.html`: 3D globe with offline Three.js / Globe.gl texture, auto-pause on hover, medical condition search, and 'Life in Weeks' matrix.
+  - `app/templates/observations.html`: Outlier filtering, informative empty state, and one-click quick filters.
+  - `tests/test_api.py`: Automated tests covering API endpoints, year parsing, and prediction engine (8/8 passed).
+  - Included in commit: `Lab 2: longevity prediction engine and warehouse query API`.
+- **Your changes:**
+  - Bundled `three.min.js`, `globe.gl.min.js`, `world-110m.json`, and `earth-blue-marble.jpg` locally in `app/static/` so the application runs completely offline.
+  - Added intelligent 2-digit year normalization (`24` -> `2024`) and informative empty-state messages explaining WHO 1–2 year surveillance lags.
+  - Added genetic conditions (Cystic Fibrosis, Sickle Cell, Familial Hypercholesterolemia) and instant search filtering.
+  - Verified with `pytest tests/` (all 8 tests passing).

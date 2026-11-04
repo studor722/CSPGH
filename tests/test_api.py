@@ -50,3 +50,36 @@ def test_get_observations_api():
         assert "country_iso3" in data[0]
         assert "indicator_code" in data[0]
         assert "year" in data[0]
+
+
+def test_observations_two_digit_year_parsing():
+    # 24 should intelligently parse as 2024
+    response = client.get("/api/observations?country_iso3=USA&year=24")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    for row in data:
+        assert row["year"] == 2024
+
+
+def test_calculator_evaluate_endpoint():
+    payload = {
+        "country_iso3": "USA",
+        "current_age": 30,
+        "sex": "BTSX",
+        "chronic_diseases": ["hypertension"],
+        "smoking": "never",
+        "alcohol": "none",
+        "exercise": "cardio_strength",
+        "diet": "mediterranean",
+        "bmi": "normal",
+        "sleep": "optimal",
+        "stress": "low",
+    }
+    response = client.post("/api/calculator/evaluate", json=payload)
+    assert response.status_code == 200
+    res = response.json()
+    assert "predicted_life_expectancy" in res
+    assert "weeks_lived" in res
+    assert "weeks_remaining" in res
+    assert res["current_age"] == 30

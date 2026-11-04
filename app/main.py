@@ -18,10 +18,10 @@ from etl.realtime_pipeline import sync_country_realtime
 app = FastAPI(
     title="Global Health Data Platform & Life Expectancy Calculator",
     description="Real-time Global Health Data Platform and Chronic Disease / Lifestyle Longevity Calculator using WHO & World Bank APIs.",
-    version="1.3.0",
+    version="1.4.0",
 )
 
-# Mount static files for local D3, TopoJSON, and World Atlas
+# Mount static files for local Three.js, Globe.gl, TopoJSON, and textures
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 templates = Jinja2Templates(directory="app/templates")
@@ -35,8 +35,10 @@ class CalculatorRequest(BaseModel):
     smoking: str = Field(default="never", examples=["never"])
     alcohol: str = Field(default="none", examples=["none"])
     exercise: str = Field(default="active", examples=["active"])
+    diet: str = Field(default="mediterranean", examples=["mediterranean"])
     bmi: str = Field(default="normal", examples=["normal"])
     sleep: str = Field(default="optimal", examples=["optimal"])
+    stress: str = Field(default="low", examples=["low"])
 
 
 @app.get("/", response_class=RedirectResponse)
@@ -58,12 +60,33 @@ def calculator_page(request: Request, db: Session = Depends(get_db)):
     )
 
 
+def normalize_query_year(year_val: Optional[str]) -> Optional[int]:
+    """
+    Intelligently parses user year inputs:
+    - Strips whitespace and safely handles string/numeric types.
+    - Expands 2-digit years (e.g., '24' -> 2024, '25' -> 2025, '99' -> 1999).
+    - Returns None if empty or unparseable.
+    """
+    if year_val is None or not str(year_val).strip():
+        return None
+    try:
+        yr = int(str(year_val).strip())
+        if 0 <= yr <= 50:
+            return 2000 + yr
+        elif 51 <= yr <= 99:
+            return 1900 + yr
+        return yr
+    except ValueError:
+        return None
+
+
 @app.get("/observations", response_class=HTMLResponse)
 def observations_page(
     request: Request,
     country_iso3: Optional[str] = None,
     indicator_code: Optional[str] = None,
-    year: Optional[int] = None,
+    year: Optional[str] = None,
+    is_outlier: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     query = (
@@ -81,16 +104,48 @@ def observations_page(
         .join(Indicator, Observation.indicator_id == Indicator.indicator_id)
     )
 
-    if country_iso3:
-        query = query.filter(Observation.country_iso3 == country_iso3)
-    if indicator_code:
-        query = query.filter(Indicator.code == indicator_code)
-    if year:
-        query = query.filter(Observation.year == year)
+    clean_country = country_iso3.strip().upper() if country_iso3 and country_iso3.strip() else None
+    clean_indicator = indicator_code.strip() if indicator_code and indicator_code.strip() else None
+    parsed_year = normalize_query_year(year)
+
+    if clean_country:
+        query = query.filter(Observation.country_iso3 == clean_country)
+    if clean_indicator:
+        query = query.filter(Indicator.code == clean_indicator)
+    if parsed_year is not None:
+        query = query.filter(Observation.year == parsed_year)
+    if is_outlier == "true":
+        query = query.filter(Observation.is_outlier == True)
+    elif is_outlier == "false":
+        query = query.filter(Observation.is_outlier == False)
 
     observations = query.order_by(desc(Observation.year), Country.name).limit(100).all()
     countries = db.query(Country).order_by(Country.name).all()
     indicators = db.query(Indicator).order_by(Indicator.name).all()
+
+    # If no observations found with current filters, query available years in DB to guide user
+    available_years_info = None
+    if len(observations) == 0 and (clean_country or clean_indicator or parsed_year):
+        avail_q = (
+            db.query(
+                func.min(Observation.year).label("min_year"),
+                func.max(Observation.year).label("max_year"),
+                func.count(Observation.observation_id).label("total_count"),
+            )
+            .join(Indicator)
+        )
+        if clean_country:
+            avail_q = avail_q.filter(Observation.country_iso3 == clean_country)
+        if clean_indicator:
+            avail_q = avail_q.filter(Indicator.code == clean_indicator)
+
+        row = avail_q.first()
+        if row and row.total_count and row.total_count > 0:
+            available_years_info = {
+                "min_year": row.min_year,
+                "max_year": row.max_year,
+                "total_count": row.total_count,
+            }
 
     return templates.TemplateResponse(
         request=request,
@@ -100,9 +155,11 @@ def observations_page(
             "observations": observations,
             "countries": countries,
             "indicators": indicators,
-            "selected_country": country_iso3,
-            "selected_indicator": indicator_code,
-            "selected_year": year,
+            "selected_country": clean_country or "",
+            "selected_indicator": clean_indicator or "",
+            "selected_year": parsed_year or "",
+            "selected_outlier": is_outlier or "",
+            "available_years_info": available_years_info,
         },
     )
 
@@ -111,7 +168,8 @@ def observations_page(
 def get_observations_api(
     country_iso3: Optional[str] = None,
     indicator_code: Optional[str] = None,
-    year: Optional[int] = None,
+    year: Optional[str] = None,
+    is_outlier: Optional[str] = None,
     limit: int = Query(default=100, le=1000),
     db: Session = Depends(get_db),
 ):
@@ -131,14 +189,22 @@ def get_observations_api(
         .join(Indicator, Observation.indicator_id == Indicator.indicator_id)
     )
 
-    if country_iso3:
-        query = query.filter(Observation.country_iso3 == country_iso3)
-    if indicator_code:
-        query = query.filter(Indicator.code == indicator_code)
-    if year:
-        query = query.filter(Observation.year == year)
+    clean_country = country_iso3.strip().upper() if country_iso3 and country_iso3.strip() else None
+    clean_indicator = indicator_code.strip() if indicator_code and indicator_code.strip() else None
+    parsed_year = normalize_query_year(year)
 
-    results = query.order_by(desc(Observation.year)).limit(limit).all()
+    if clean_country:
+        query = query.filter(Observation.country_iso3 == clean_country)
+    if clean_indicator:
+        query = query.filter(Indicator.code == clean_indicator)
+    if parsed_year is not None:
+        query = query.filter(Observation.year == parsed_year)
+    if is_outlier == "true":
+        query = query.filter(Observation.is_outlier == True)
+    elif is_outlier == "false":
+        query = query.filter(Observation.is_outlier == False)
+
+    results = query.order_by(desc(Observation.year), Country.name).limit(limit).all()
     return [
         {
             "observation_id": r.observation_id,
@@ -147,8 +213,9 @@ def get_observations_api(
             "indicator_code": r.indicator_code,
             "indicator_name": r.indicator_name,
             "year": r.year,
-            "sex": r.sex,
+            "sex": r.sex.value if hasattr(r.sex, "value") else str(r.sex),
             "value": float(r.value) if r.value is not None else None,
+            "is_outlier": r.is_outlier,
         }
         for r in results
     ]
@@ -172,59 +239,66 @@ def get_chronic_diseases():
 @app.get("/api/globe/countries-stats")
 def get_globe_countries_stats(db: Session = Depends(get_db)):
     """
-    Returns country longevity statistics keyed by both ISO3 and numeric country IDs
-    for fast 3D globe rendering, choropleth shading, and interactive hover tooltips.
+    Returns country longevity statistics keyed by ISO3, ISO2, numeric country IDs,
+    and common names for 3D globe rendering, choropleth shading, and interactive hover tooltips.
     """
     sub = (
         db.query(
             Observation.country_iso3,
-            func.max(Observation.year).label("max_year")
+            func.max(Observation.year).label("max_year"),
         )
         .join(Indicator)
-        .filter(Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]))
+        .filter(Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN", "OWID_LIFE_EXPECTANCY"]))
         .group_by(Observation.country_iso3)
         .subquery()
     )
 
-    rows = (
+    results = (
         db.query(
             Country.iso3,
             Country.name,
             Country.region,
-            Country.income_group,
             Observation.value,
-            Observation.year
+            Observation.year,
         )
-        .join(Country, Observation.country_iso3 == Country.iso3)
-        .join(Indicator, Observation.indicator_id == Indicator.indicator_id)
-        .join(sub, (Observation.country_iso3 == sub.c.country_iso3) & (Observation.year == sub.c.max_year))
-        .filter(Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]))
-        .filter(Observation.sex == "BTSX")
+        .join(sub, Country.iso3 == sub.c.country_iso3)
+        .join(
+            Observation,
+            (Observation.country_iso3 == sub.c.country_iso3)
+            & (Observation.year == sub.c.max_year),
+        )
+        .join(Indicator)
+        .filter(
+            Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN", "OWID_LIFE_EXPECTANCY"]),
+            Observation.sex.in_(["BTSX", "ALL"]),
+        )
         .all()
     )
 
     stats = {}
-    for r in rows:
-        val = float(r.value)
-        num_code = None
-        try:
-            c = pycountry.countries.get(alpha_3=r.iso3)
-            if c and hasattr(c, "numeric"):
-                num_code = str(int(c.numeric))
-        except Exception:
-            pass
-
-        entry = {
+    for r in results:
+        val = float(r.value) if r.value else None
+        item = {
             "iso3": r.iso3,
             "name": r.name,
             "region": r.region,
-            "income_group": r.income_group,
-            "life_expectancy": round(val, 1),
+            "life_expectancy": val,
             "year": r.year,
         }
-        stats[r.iso3] = entry
-        if num_code:
-            stats[num_code] = entry
+        stats[r.iso3] = item
+
+        try:
+            pc = pycountry.countries.get(alpha_3=r.iso3)
+            if pc:
+                if hasattr(pc, "numeric") and pc.numeric:
+                    stats[int(pc.numeric)] = item
+                    stats[str(pc.numeric)] = item
+                if hasattr(pc, "alpha_2") and pc.alpha_2:
+                    stats[pc.alpha_2] = item
+                if hasattr(pc, "name") and pc.name:
+                    stats[pc.name] = item
+        except Exception:
+            pass
 
     return stats
 
@@ -232,16 +306,17 @@ def get_globe_countries_stats(db: Session = Depends(get_db)):
 @app.post("/api/pipeline/sync-country/{iso3}")
 def live_sync_country(iso3: str):
     """Real-time pipeline trigger: fetches live data from WHO/World Bank and updates database."""
-    sync_result = sync_country_realtime(iso3)
+    sync_result = sync_country_realtime(iso3.strip().upper())
     return sync_result
 
 
 @app.get("/api/country/{iso3}/baseline")
 def get_country_baseline(iso3: str, sex: str = "BTSX", live_sync: bool = False, db: Session = Depends(get_db)):
+    clean_iso3 = iso3.strip().upper()
     if live_sync:
-        sync_country_realtime(iso3)
+        sync_country_realtime(clean_iso3)
 
-    country = db.query(Country).filter(Country.iso3 == iso3.upper()).first()
+    country = db.query(Country).filter(Country.iso3 == clean_iso3).first()
     if not country:
         return JSONResponse(status_code=404, content={"error": f"Country {iso3} not found"})
 
@@ -249,9 +324,9 @@ def get_country_baseline(iso3: str, sex: str = "BTSX", live_sync: bool = False, 
         db.query(Observation)
         .join(Indicator)
         .filter(
-            Observation.country_iso3 == country.iso3,
-            Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]),
-            Observation.sex.in_([sex, "BTSX"]),
+            Observation.country_iso3 == clean_iso3,
+            Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN", "OWID_LIFE_EXPECTANCY"]),
+            Observation.sex.in_([sex, "BTSX", "ALL"]),
         )
         .order_by(desc(Observation.year))
         .first()
@@ -272,16 +347,17 @@ def get_country_baseline(iso3: str, sex: str = "BTSX", live_sync: bool = False, 
 
 @app.post("/api/calculator/evaluate")
 def evaluate_life_expectancy(req: CalculatorRequest, db: Session = Depends(get_db)):
-    country = db.query(Country).filter(Country.iso3 == req.country_iso3.upper()).first()
-    country_name = country.name if country else req.country_iso3
+    clean_iso3 = req.country_iso3.strip().upper()
+    country = db.query(Country).filter(Country.iso3 == clean_iso3).first()
+    country_name = country.name if country else clean_iso3
 
     obs = (
         db.query(Observation)
         .join(Indicator)
         .filter(
-            Observation.country_iso3 == req.country_iso3.upper(),
-            Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN"]),
-            Observation.sex.in_([req.sex, "BTSX"]),
+            Observation.country_iso3 == clean_iso3,
+            Indicator.code.in_(["WHOSIS_000001", "SP.DYN.LE00.IN", "OWID_LIFE_EXPECTANCY"]),
+            Observation.sex.in_([req.sex, "BTSX", "ALL"]),
         )
         .order_by(desc(Observation.year))
         .first()
@@ -291,7 +367,7 @@ def evaluate_life_expectancy(req: CalculatorRequest, db: Session = Depends(get_d
 
     # Call AI / ML Longevity Algorithm with Chronic Diseases and Habits
     forecast = predict_longevity(
-        country_iso3=req.country_iso3,
+        country_iso3=clean_iso3,
         country_name=country_name,
         baseline_life_expectancy=baseline_le,
         current_age=req.current_age,
@@ -300,8 +376,10 @@ def evaluate_life_expectancy(req: CalculatorRequest, db: Session = Depends(get_d
         smoking=req.smoking,
         alcohol=req.alcohol,
         exercise=req.exercise,
+        diet=req.diet,
         bmi=req.bmi,
         sleep=req.sleep,
+        stress=req.stress,
     )
 
     return forecast

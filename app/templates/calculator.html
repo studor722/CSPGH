@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <style>
     .wizard-container {
-        max-width: 820px;
+        max-width: 860px;
         margin: 0 auto;
     }
 
@@ -47,18 +47,6 @@
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
     }
 
-    .step-item.completed {
-        color: var(--text-primary);
-    }
-
-    .step-circle {
-        display: none;
-    }
-
-    .step-label {
-        display: inline;
-    }
-
     .step-content {
         display: none;
     }
@@ -95,12 +83,12 @@
         grid-column: 1 / -1;
     }
 
-    /* Globe Stage */
+    /* 3D Realistic Globe Stage */
     .globe-stage {
         position: relative;
         width: 100%;
-        max-width: 520px;
-        margin: 1.25rem auto 1.5rem auto;
+        max-width: 540px;
+        margin: 1rem auto 1.5rem auto;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -109,44 +97,70 @@
 
     .globe-canvas-wrap {
         position: relative;
-        width: 420px;
-        height: 420px;
+        width: 440px;
+        height: 440px;
         max-width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        border-radius: 50%;
+        overflow: hidden;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25), inset 0 0 20px rgba(0, 0, 0, 0.5);
+        background: radial-gradient(circle at 35% 35%, #101c2e 0%, #06090e 100%);
+    }
+
+    #globeViz {
+        width: 100%;
+        height: 100%;
+        cursor: grab;
     }
 
     #globeCanvas {
+        width: 100%;
+        height: 100%;
         cursor: grab;
         border-radius: 50%;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        background: #0d1520;
+        background: radial-gradient(circle at 35% 35%, #1c2b3e 0%, #0b1118 100%);
     }
 
-    #globeCanvas:active {
+    #globeViz:active, #globeCanvas:active {
         cursor: grabbing;
     }
 
-    .globe-halo {
-        display: none;
+    .globe-instruction-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--bg-card-secondary);
+        border: 1px solid var(--border-subtle);
+        padding: 5px 14px;
+        border-radius: var(--radius-full);
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.85rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
-    .globe-tooltip {
+    .pulse-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--accent-green);
+        box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .canvas-globe-tooltip {
         position: absolute;
-        display: none;
         pointer-events: none;
-        z-index: 1000;
-        background: var(--bg-card);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid var(--border-subtle);
-        padding: 0.65rem 0.95rem;
-        border-radius: 12px;
-        box-shadow: var(--card-shadow-hover);
-        color: var(--text-primary);
-        min-width: 160px;
-        transform: translate(-50%, -125%);
+        background: rgba(18, 22, 32, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #f5f5f7;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        white-space: nowrap;
+        transform: translate(-50%, -120%);
         transition: opacity 0.15s ease;
     }
 
@@ -175,7 +189,7 @@
     /* Disease Cards */
     .disease-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 0.85rem;
         margin-top: 1.25rem;
     }
@@ -184,12 +198,12 @@
         background: var(--bg-card-secondary);
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius-md);
-        padding: 1rem 1.15rem;
+        padding: 0.95rem 1.15rem;
         cursor: pointer;
         transition: var(--transition-smooth);
         display: flex;
         flex-direction: column;
-        gap: 0.4rem;
+        gap: 0.35rem;
     }
 
     .disease-card:hover {
@@ -203,6 +217,11 @@
         box-shadow: 0 0 0 1px var(--accent-blue);
     }
 
+    .disease-card.healthy-card.selected {
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 1px var(--accent-green);
+    }
+
     .disease-header {
         display: flex;
         justify-content: space-between;
@@ -210,7 +229,7 @@
     }
 
     .disease-badge {
-        font-size: 0.75rem;
+        font-size: 0.73rem;
         font-weight: 600;
         color: var(--accent-red);
         background: rgba(255, 59, 48, 0.1);
@@ -218,18 +237,46 @@
         border-radius: var(--radius-full);
     }
 
+    .disease-badge.healthy-badge {
+        color: var(--accent-green);
+        background: rgba(52, 199, 89, 0.12);
+    }
+
     /* Habit segmented options */
+    .habit-section {
+        margin-top: 1.25rem;
+        background: var(--bg-card-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-md);
+        padding: 1.15rem 1.25rem;
+    }
+
+    .habit-section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 0.2rem;
+        color: var(--text-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .habit-section-desc {
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        margin-bottom: 0.75rem;
+    }
+
     .habit-options {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 0.5rem;
-        margin-top: 0.4rem;
     }
 
     .habit-pill {
         border: 1px solid var(--border-subtle);
-        background: var(--bg-card-secondary);
-        padding: 0.75rem 0.5rem;
+        background: var(--bg-card);
+        padding: 0.75rem 0.65rem;
         border-radius: var(--radius-sm);
         text-align: center;
         cursor: pointer;
@@ -238,7 +285,6 @@
 
     .habit-pill:hover {
         border-color: var(--border-hover);
-        background: var(--bg-card);
     }
 
     .habit-pill.selected {
@@ -248,134 +294,274 @@
     }
 
     .habit-pill.selected .habit-title,
+    .habit-pill.selected .habit-sub,
     .habit-pill.selected .habit-impact-tag {
         color: #ffffff !important;
     }
 
-    .habit-icon { font-size: 1.25rem; margin-bottom: 0.2rem; }
-    .habit-title { font-size: 0.82rem; font-weight: 500; color: var(--text-primary); }
-    .habit-impact-tag { font-size: 0.72rem; margin-top: 0.15rem; font-weight: 600; }
-    .impact-neg { color: var(--accent-red); }
-    .impact-pos { color: var(--accent-green); }
-    .impact-zero { color: var(--text-muted); }
+    .habit-title {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
 
-    /* Results Dashboard */
+    .habit-sub {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        margin-top: 0.2rem;
+        line-height: 1.25;
+    }
+
+    .habit-impact-tag {
+        font-size: 0.7rem;
+        font-weight: 600;
+        margin-top: 0.35rem;
+    }
+
+    .impact-pos { color: var(--accent-green); }
+    .impact-neg { color: var(--accent-red); }
+    .impact-neutral { color: var(--text-muted); }
+
+    /* Results Dashboard Styling */
     .result-hero {
         text-align: center;
-        padding: 2rem 1rem;
-        border-radius: var(--radius-md);
-        background: var(--bg-card-secondary);
-        border: 1px solid var(--border-subtle);
+        padding: 2rem 1.5rem 1.75rem 1.5rem;
+        border-bottom: 1px solid var(--border-subtle);
         margin-bottom: 1.5rem;
     }
 
     .expectancy-number {
-        font-size: 4.5rem;
+        font-size: 3.8rem;
         font-weight: 700;
         letter-spacing: -0.03em;
         line-height: 1;
-        color: var(--text-primary);
         margin: 0.4rem 0;
+        color: var(--text-primary);
     }
 
     .delta-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
-        padding: 0.35rem 0.85rem;
-        border-radius: var(--radius-full);
+        font-size: 0.84rem;
         font-weight: 600;
-        font-size: 0.9rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-full);
+    }
+
+    /* Horizons Card Grid */
+    .horizon-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        margin: 1.25rem 0;
+    }
+
+    @media (max-width: 600px) {
+        .horizon-grid { grid-template-columns: 1fr; }
+    }
+
+    .horizon-card {
+        background: var(--bg-card-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 1rem 0.75rem;
+        text-align: center;
+    }
+
+    .horizon-val {
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: var(--accent-blue);
+        letter-spacing: -0.02em;
+    }
+
+    .horizon-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+        margin-top: 0.2rem;
+    }
+
+    /* Life Timeline Journey */
+    .timeline-container {
+        background: var(--bg-card-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 1.15rem;
+        margin: 1.25rem 0;
+    }
+
+    .timeline-bar-wrap {
+        height: 12px;
+        background: var(--bg-control);
+        border-radius: 999px;
+        overflow: hidden;
+        display: flex;
+        margin: 0.75rem 0 0.5rem 0;
+    }
+
+    .timeline-segment-lived {
+        background: #8e8e93;
+        transition: width 0.6s ease;
+    }
+
+    .timeline-segment-ahead {
+        background: linear-gradient(90deg, var(--accent-blue) 0%, var(--accent-green) 100%);
+        transition: width 0.6s ease;
     }
 
     .breakdown-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.75rem 0;
+        padding: 0.55rem 0;
         border-bottom: 1px solid var(--border-subtle);
-        font-size: 0.9rem;
+        font-size: 0.88rem;
     }
 
     .breakdown-row:last-child {
         border-bottom: none;
+    }
+
+    /* "Life in Weeks" Matrix Visualization */
+    .weeks-perspective-card {
+        margin: 1.5rem 0;
+        background: var(--bg-card-secondary);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-sm);
+        padding: 1.25rem;
+    }
+
+    .weeks-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.15rem;
+        font-size: 0.78rem;
+        color: var(--text-secondary);
+    }
+
+    .weeks-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .week-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 1px;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    .week-lived {
+        background: #8e8e93;
+    }
+
+    .week-ahead {
+        background: #34c759;
+        box-shadow: 0 0 3px rgba(52, 199, 89, 0.4);
+    }
+
+    .week-horizon {
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: transparent;
+    }
+
+    .weeks-matrix-scroll {
+        max-height: 380px;
+        overflow-y: auto;
+        overflow-x: auto;
+        margin-top: 1rem;
+        padding-right: 0.5rem;
+    }
+
+    .weeks-matrix-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 2.5px;
+        min-width: 480px;
+    }
+
+    .weeks-year-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .weeks-year-label {
+        width: 44px;
+        font-size: 0.68rem;
+        color: var(--text-muted);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        flex-shrink: 0;
+    }
+
+    .weeks-dots-wrap {
+        display: flex;
+        gap: 2.5px;
+        flex-wrap: nowrap;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="wizard-container">
-    <!-- Header -->
-    <div style="text-align: center; margin-bottom: 1.75rem;">
-        <h1>AI Longevity & Life Expectancy Calculator</h1>
-        <p class="subhead" style="max-width: 580px; margin: 0.4rem auto 0 auto;">
-            Evidence-based survival calculator calibrated on WHO Global Health Observatory and World Bank demographic records.
-        </p>
-    </div>
-
-    <!-- Segmented Stepper -->
+    <!-- Minimalist Stepper Navigation -->
     <div class="stepper">
         <div class="step-item active" id="stepIndicator1" onclick="goToStep(1)">
-            <div class="step-circle">1</div>
-            <div class="step-label">1. Baseline</div>
+            Step 1: Country & Profile
         </div>
         <div class="step-item" id="stepIndicator2" onclick="goToStep(2)">
-            <div class="step-circle">2</div>
-            <div class="step-label">2. Medical</div>
+            Step 2: Chronic Medical Conditions
         </div>
         <div class="step-item" id="stepIndicator3" onclick="goToStep(3)">
-            <div class="step-circle">3</div>
-            <div class="step-label">3. Lifestyle</div>
+            Step 3: Lifestyle & Diet
         </div>
         <div class="step-item" id="stepIndicator4" onclick="goToStep(4)">
-            <div class="step-circle">4</div>
-            <div class="step-label">4. Results</div>
+            Step 4: Longevity Forecast
         </div>
     </div>
 
-    <!-- STEP 1: Country & Demographics -->
+    <!-- STEP 1: Country & Demographics with 3D Globe -->
     <div class="ui-card step-content active" id="step1">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
-            <div>
-                <h2>Step 1: Explore & Select Country</h2>
-                <p class="subhead" style="font-size: 0.85rem;">
-                    Select or rotate the globe to inspect sovereign life expectancy baselines.
-                </p>
-            </div>
-            <button class="btn btn-outline" style="font-size: 0.78rem;" onclick="triggerLiveSync()">
-                Sync Live
-            </button>
-        </div>
+        <h1>Life Expectancy Baseline</h1>
+        <p class="subhead">
+            Select a sovereign nation using the interactive 3D Earth or dropdown to load verified WHO & World Bank baselines.
+        </p>
 
-        <!-- 3D Globe Component -->
+        <!-- 3D Realistic Globe Stage -->
         <div class="globe-stage">
+            <div class="globe-instruction-pill">
+                <span class="pulse-dot"></span>
+                <span>Interactive 3D Earth · Drag to rotate, hover to pause, click country</span>
+            </div>
             <div class="globe-canvas-wrap">
-                <canvas id="globeCanvas" width="420" height="420"></canvas>
-                <div class="globe-halo"></div>
-                <div id="globeTooltip" class="globe-tooltip">
-                    <div id="ttCountryName" style="font-weight: 600; font-size: 0.92rem;">Country</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);" id="ttRegion">Region</div>
-                    <div style="margin-top: 0.3rem; display: flex; align-items: baseline; gap: 0.25rem;">
-                        <span style="font-size: 1.35rem; font-weight: 700; color: var(--accent-blue);" id="ttLifeExp">--</span>
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">years</span>
-                    </div>
-                </div>
+                <div id="globeViz" style="width: 100%; height: 100%;"></div>
+                <canvas id="globeCanvas" width="440" height="440" style="display:none;"></canvas>
+                <div id="canvasTooltip" class="canvas-globe-tooltip" style="display:none;"></div>
             </div>
 
             <div class="globe-legend">
-                <div class="legend-item"><span class="legend-color" style="background: #34c759;"></span> 80+ yrs</div>
-                <div class="legend-item"><span class="legend-color" style="background: #0071e3;"></span> 75 – 79.9 yrs</div>
-                <div class="legend-item"><span class="legend-color" style="background: #ff9500;"></span> 70 – 74.9 yrs</div>
-                <div class="legend-item"><span class="legend-color" style="background: #ff3b30;"></span> &lt; 70 yrs</div>
+                <div class="legend-item"><div class="legend-color" style="background:#34c759;"></div> ≥80 yrs</div>
+                <div class="legend-item"><div class="legend-color" style="background:#30a3fa;"></div> 75–79 yrs</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff9500;"></div> 70–74 yrs</div>
+                <div class="legend-item"><div class="legend-color" style="background:#ff3b30;"></div> &lt;70 yrs</div>
             </div>
         </div>
 
         <div class="form-grid">
             <div class="form-group full-width">
-                <label for="countrySelect">Sovereign Economy</label>
-                <select id="countrySelect" class="form-control" onchange="onCountryDropdownSelected()">
+                <label for="countrySelect">
+                    <span>Sovereign Nation</span>
+                    <span id="countryLoading" style="display:none; color:var(--accent-blue);">Querying DB...</span>
+                </label>
+                <select id="countrySelect" class="form-control" onchange="onCountryChanged()">
                     {% for c in countries %}
-                    <option value="{{ c.iso3 }}" {% if c.iso3 == 'ROU' %}selected{% elif not selected and c.iso3 == 'USA' %}selected{% endif %}>
+                    <option value="{{ c.iso3 }}" {% if c.iso3 == 'ROU' %}selected{% endif %}>
                         {{ c.name }} ({{ c.iso3 }})
                     </option>
                     {% endfor %}
@@ -383,201 +569,299 @@
             </div>
 
             <div class="form-group">
-                <label for="userAge">Current Age: <span id="ageDisplay" style="color: var(--accent-blue); font-weight: 600;">25</span></label>
-                <input type="range" id="userAge" min="15" max="95" value="25" oninput="document.getElementById('ageDisplay').innerText = this.value">
+                <label for="userAge">Current Age</label>
+                <input type="number" id="userAge" class="form-control" value="28" min="1" max="110" oninput="validateAgeInput()">
             </div>
 
             <div class="form-group">
                 <label for="biologicalSex">Biological Sex</label>
                 <select id="biologicalSex" class="form-control" onchange="onCountryChanged()">
-                    <option value="BTSX">Both Sexes / National Average</option>
-                    <option value="MLE">Male</option>
-                    <option value="FMLE">Female</option>
+                    <option value="BTSX">Both / General Baseline (BTSX)</option>
+                    <option value="FMLE">Female (FMLE)</option>
+                    <option value="MLE">Male (MLE)</option>
                 </select>
             </div>
         </div>
 
-        <div style="background: var(--bg-card-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1rem; margin-top: 1.25rem; display: flex; justify-content: space-between; align-items: center;">
+        <!-- Selected Country Live Baseline Preview -->
+        <div style="margin-top: 1.5rem; background: var(--bg-card-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
             <div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">National Baseline</div>
-                <div id="previewCountryName" style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary);">Romania</div>
-                <div id="previewRegion" style="font-size: 0.8rem; color: var(--text-secondary);">Europe & Central Asia</div>
+                <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">
+                    Sovereign Baseline (WHO GHO / World Bank)
+                </div>
+                <div style="font-weight: 600; font-size: 1.05rem; margin-top: 0.15rem;" id="previewCountryName">
+                    Romania (ROU)
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);" id="previewRegion">
+                    Europe & Central Asia
+                </div>
             </div>
             <div style="text-align: right;">
-                <div style="font-size: 2rem; font-weight: 700; color: var(--accent-blue); line-height: 1;" id="previewLifeExpectancy">75.3</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem;">years at birth</div>
+                <div style="font-size: 1.65rem; font-weight: 700; color: var(--accent-blue);" id="previewLifeExpectancy">
+                    75.5
+                </div>
+                <div style="font-size: 0.72rem; color: var(--text-muted);">
+                    Baseline Expectancy (Years)
+                </div>
             </div>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
-            <button class="btn btn-primary" onclick="goToStep(2)">Continue to Medical Conditions →</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem;">
+            <button class="btn btn-outline" type="button" onclick="triggerLiveSync()">
+                ⚡ Live Sync from WHO/WB
+            </button>
+            <button class="btn btn-primary" onclick="goToStep(2)">
+                Continue to Medical Health →
+            </button>
         </div>
     </div>
 
-    <!-- STEP 2: Chronic Diseases -->
+    <!-- STEP 2: Medical & Chronic Conditions -->
     <div class="ui-card step-content" id="step2">
-        <h2>Step 2: Chronic Medical Conditions</h2>
-        <p class="subhead" style="font-size: 0.85rem; margin-bottom: 1rem;">
-            Select diagnosed medical conditions. Multi-morbidity attenuation factors prevent linear over-penalization.
+        <h1>Medical Health & Chronic Diagnoses</h1>
+        <p class="subhead">
+            Select any physician-diagnosed chronic or genetic conditions. Multiple diagnoses use non-linear multimorbidity attenuation to avoid duplicate penalties.
         </p>
 
+        <!-- Search Filter for Conditions -->
+        <div style="margin: 1.25rem 0 0.5rem 0;">
+            <input type="text" id="diseaseSearch" class="form-control"
+                   placeholder="🔍 Search conditions (e.g. cystic, sickle, hypercholesterolemia, heart, diabetes, asthma)..."
+                   oninput="filterDiseases(this.value)"
+                   style="padding: 0.65rem 1rem; font-size: 0.88rem;">
+            <div id="noDiseasesMatch" style="display:none; padding: 1.25rem; color: var(--text-muted); font-size: 0.85rem; text-align: center;">
+                No medical or genetic conditions found matching that query.
+            </div>
+        </div>
+
         <div class="disease-grid">
-            {% for key, d in chronic_diseases.items() %}
+            <!-- Healthy Baseline Option -->
+            <div class="disease-card healthy-card selected" data-disease="none" onclick="toggleDisease(this)">
+                <div class="disease-header">
+                    <span style="font-size: 1.25rem;">✨</span>
+                    <span class="disease-badge healthy-badge">Healthy Baseline</span>
+                </div>
+                <div style="font-weight: 600; font-size: 0.92rem; color: var(--text-primary);">
+                    No Chronic Conditions
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.35;">
+                    No active cardiovascular, metabolic, renal, or chronic respiratory disorders.
+                </div>
+            </div>
+
+            {% for key, cond in chronic_diseases.items() %}
+            {% if key != 'none' %}
             <div class="disease-card" data-disease="{{ key }}" onclick="toggleDisease(this)">
                 <div class="disease-header">
-                    <span style="font-size: 1.35rem;">{{ d.icon }}</span>
-                    <span class="disease-badge">-{{ d.loss_years }} yrs</span>
+                    <span style="font-size: 1.25rem;">{{ cond.icon }}</span>
+                    <span class="disease-badge">-{{ "%.1f"|format(cond.loss_years) }} yrs</span>
                 </div>
-                <div style="font-weight: 600; font-size: 0.92rem; color: var(--text-primary); margin-top: 0.2rem;">{{ d.name }}</div>
-                <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4;">{{ d.description }}</div>
+                <div style="font-weight: 600; font-size: 0.92rem; color: var(--text-primary);">
+                    {{ cond.name }}
+                </div>
+                <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.35;">
+                    {{ cond.description }}
+                </div>
             </div>
+            {% endif %}
             {% endfor %}
         </div>
 
-        <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; margin-top: 1.75rem;">
             <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
-            <button class="btn btn-primary" onclick="goToStep(3)">Continue to Habits →</button>
+            <button class="btn btn-primary" onclick="goToStep(3)">Continue to Lifestyle & Diet →</button>
         </div>
     </div>
 
-    <!-- STEP 3: Habits & Lifestyle -->
+    <!-- STEP 3: Lifestyle, Diet & Habits -->
     <div class="ui-card step-content" id="step3">
-        <h2>Step 3: Lifestyle & Daily Habits</h2>
-        <p class="subhead" style="font-size: 0.85rem; margin-bottom: 1.25rem;">
-            Actuarial risk modifiers calibrated against epidemiological hazard ratios (Doll et al., BMJ & Wood et al., Lancet).
+        <h1>Lifestyle, Nutrition & Daily Habits</h1>
+        <p class="subhead">
+            Modifiable health habits calibrated against epidemiological cohort studies (PREDIMED, Adventist Health, Lancet Public Health, Doll et al.).
         </p>
 
-        <!-- Smoking -->
-        <div style="margin-bottom: 1.25rem;">
-            <label>Tobacco Smoking</label>
-            <div class="habit-options" id="smokingOptions">
-                <div class="habit-pill selected" data-factor="smoking" data-val="never" onclick="selectHabit(this)">
-                    <div class="habit-icon">🌱</div>
-                    <div class="habit-title">Non-Smoker</div>
-                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
+        <!-- Dietary Pattern (Expanded to Vegetarian, Mediterranean, Omnivore, Carnivore, Ultra-processed) -->
+        <div class="habit-section">
+            <div class="habit-section-title">
+                <span>🥗 Nutrition & Dietary Pattern</span>
+                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">PREDIMED & Lancet Cohorts</span>
+            </div>
+            <div class="habit-section-desc">Primary nutritional regime and balance of whole foods vs animal meats and processed ingredients.</div>
+            <div class="habit-options" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                <div class="habit-pill selected" data-factor="diet" data-val="mediterranean" onclick="selectHabit(this)">
+                    <div class="habit-title">Mediterranean / Pescatarian</div>
+                    <div class="habit-sub">Olive oil, fish, legumes, fresh plants</div>
+                    <div class="habit-impact-tag impact-pos">+3.5 yrs</div>
                 </div>
-                <div class="habit-pill" data-factor="smoking" data-val="former" onclick="selectHabit(this)">
-                    <div class="habit-icon">🛡️</div>
-                    <div class="habit-title">Former Smoker</div>
-                    <div class="habit-impact-tag impact-neg">-1.5 yrs</div>
+                <div class="habit-pill" data-factor="diet" data-val="vegetarian" onclick="selectHabit(this)">
+                    <div class="habit-title">Plant-Based / Vegetarian</div>
+                    <div class="habit-sub">Whole plants, legumes, nuts, grains</div>
+                    <div class="habit-impact-tag impact-pos">+3.0 yrs</div>
                 </div>
-                <div class="habit-pill" data-factor="smoking" data-val="light" onclick="selectHabit(this)">
-                    <div class="habit-icon">💨</div>
-                    <div class="habit-title">Light (&lt;10/d)</div>
-                    <div class="habit-impact-tag impact-neg">-4.5 yrs</div>
+                <div class="habit-pill" data-factor="diet" data-val="balanced_omnivore" onclick="selectHabit(this)">
+                    <div class="habit-title">Balanced Mixed Omnivore</div>
+                    <div class="habit-sub">Standard varied home-cooked diet</div>
+                    <div class="habit-impact-tag impact-neutral">0.0 yrs</div>
                 </div>
-                <div class="habit-pill" data-factor="smoking" data-val="moderate" onclick="selectHabit(this)">
-                    <div class="habit-icon">🚬</div>
-                    <div class="habit-title">Moderate (10-19)</div>
-                    <div class="habit-impact-tag impact-neg">-7.0 yrs</div>
+                <div class="habit-pill" data-factor="diet" data-val="carnivore_keto" onclick="selectHabit(this)">
+                    <div class="habit-title">Carnivore / Meat-Based</div>
+                    <div class="habit-sub">High animal fat, zero plant fiber</div>
+                    <div class="habit-impact-tag impact-neg">-2.2 yrs</div>
                 </div>
-                <div class="habit-pill" data-factor="smoking" data-val="heavy" onclick="selectHabit(this)">
-                    <div class="habit-icon">⚠️</div>
-                    <div class="habit-title">Heavy (20+/d)</div>
-                    <div class="habit-impact-tag impact-neg">-10.0 yrs</div>
+                <div class="habit-pill" data-factor="diet" data-val="ultra_processed" onclick="selectHabit(this)">
+                    <div class="habit-title">High Ultra-Processed</div>
+                    <div class="habit-sub">Fast food, soda, packaged snacks</div>
+                    <div class="habit-impact-tag impact-neg">-3.8 yrs</div>
                 </div>
             </div>
         </div>
 
-        <!-- Alcohol -->
-        <div style="margin-bottom: 1.25rem;">
-            <label>Alcohol Consumption (Drinks / Week)</label>
-            <div class="habit-options" id="alcoholOptions">
-                <div class="habit-pill selected" data-factor="alcohol" data-val="none" onclick="selectHabit(this)">
-                    <div class="habit-icon">💧</div>
-                    <div class="habit-title">None / Rare (0-2)</div>
-                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
-                </div>
-                <div class="habit-pill" data-factor="alcohol" data-val="moderate" onclick="selectHabit(this)">
-                    <div class="habit-icon">🥂</div>
-                    <div class="habit-title">Moderate (3-7)</div>
-                    <div class="habit-impact-tag impact-zero">-0.5 yrs</div>
-                </div>
-                <div class="habit-pill" data-factor="alcohol" data-val="heavy" onclick="selectHabit(this)">
-                    <div class="habit-icon">🍻</div>
-                    <div class="habit-title">Heavy (8-14)</div>
-                    <div class="habit-impact-tag impact-neg">-2.0 yrs</div>
-                </div>
-                <div class="habit-pill" data-factor="alcohol" data-val="excessive" onclick="selectHabit(this)">
-                    <div class="habit-icon">🚨</div>
-                    <div class="habit-title">Excessive (15+)</div>
-                    <div class="habit-impact-tag impact-neg">-5.0 yrs</div>
-                </div>
+        <!-- Physical Activity (Cardio, Weight Lifting, Swimming) -->
+        <div class="habit-section">
+            <div class="habit-section-title">
+                <span>🏃 Physical Activity & Training Type</span>
+                <span style="font-size:0.75rem; color:var(--accent-blue); font-weight:500;">WHO Dual Guidelines</span>
             </div>
-        </div>
-
-        <!-- Physical Activity -->
-        <div style="margin-bottom: 1.25rem;">
-            <label>Physical Activity (Aerobic & Strength)</label>
-            <div class="habit-options" id="exerciseOptions">
+            <div class="habit-section-desc">Weekly regimen: cardio (running/swimming), strength/weight lifting, or walking volume.</div>
+            <div class="habit-options" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
                 <div class="habit-pill" data-factor="exercise" data-val="sedentary" onclick="selectHabit(this)">
-                    <div class="habit-icon">🛋️</div>
-                    <div class="habit-title">Sedentary (&lt;1h)</div>
+                    <div class="habit-title">Sedentary</div>
+                    <div class="habit-sub">&lt;60 mins/week desk/sitting</div>
                     <div class="habit-impact-tag impact-neg">-2.5 yrs</div>
                 </div>
                 <div class="habit-pill" data-factor="exercise" data-val="light" onclick="selectHabit(this)">
-                    <div class="habit-icon">🚶</div>
-                    <div class="habit-title">Light (1-2h)</div>
-                    <div class="habit-impact-tag impact-zero">+0.0 yrs</div>
+                    <div class="habit-title">Light Walking</div>
+                    <div class="habit-sub">60–150 mins/week casual strolls</div>
+                    <div class="habit-impact-tag impact-neutral">0.0 yrs</div>
                 </div>
-                <div class="habit-pill selected" data-factor="exercise" data-val="active" onclick="selectHabit(this)">
-                    <div class="habit-icon">🚴</div>
-                    <div class="habit-title">Active (150m+)</div>
+                <div class="habit-pill" data-factor="exercise" data-val="active" onclick="selectHabit(this)">
+                    <div class="habit-title">Active Cardio</div>
+                    <div class="habit-sub">150–300m/wk running, swimming</div>
                     <div class="habit-impact-tag impact-pos">+3.8 yrs</div>
                 </div>
-                <div class="habit-pill" data-factor="exercise" data-val="high" onclick="selectHabit(this)">
-                    <div class="habit-icon">🏋️</div>
-                    <div class="habit-title">Athlete (5h+)</div>
+                <div class="habit-pill selected" data-factor="exercise" data-val="cardio_strength" onclick="selectHabit(this)">
+                    <div class="habit-title">Cardio + Weight Lifting</div>
+                    <div class="habit-sub">Aerobic + 2x/wk strength training</div>
                     <div class="habit-impact-tag impact-pos">+4.5 yrs</div>
                 </div>
+                <div class="habit-pill" data-factor="exercise" data-val="endurance" onclick="selectHabit(this)">
+                    <div class="habit-title">Endurance Athlete</div>
+                    <div class="habit-sub">300+ m/wk swimming, marathon</div>
+                    <div class="habit-impact-tag impact-pos">+4.8 yrs</div>
+                </div>
             </div>
         </div>
 
-        <!-- BMI -->
-        <div style="margin-bottom: 1.25rem;">
-            <label>Body Mass Index (BMI)</label>
-            <div class="habit-options" id="bmiOptions">
-                <div class="habit-pill" data-factor="bmi" data-val="underweight" onclick="selectHabit(this)">
-                    <div class="habit-icon">📉</div>
-                    <div class="habit-title">Underweight (&lt;18.5)</div>
-                    <div class="habit-impact-tag impact-neg">-2.0 yrs</div>
+        <!-- Tobacco Smoking -->
+        <div class="habit-section">
+            <div class="habit-section-title">
+                <span>🚬 Tobacco & Nicotine Use</span>
+                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">British Doctors Study</span>
+            </div>
+            <div class="habit-section-desc">Cigarette smoking or regular inhalation tobacco/nicotine products.</div>
+            <div class="habit-options">
+                <div class="habit-pill selected" data-factor="smoking" data-val="never" onclick="selectHabit(this)">
+                    <div class="habit-title">Never Smoked</div>
+                    <div class="habit-sub">Non-smoker</div>
+                    <div class="habit-impact-tag impact-neutral">0.0 yrs</div>
                 </div>
-                <div class="habit-pill selected" data-factor="bmi" data-val="normal" onclick="selectHabit(this)">
-                    <div class="habit-icon">✨</div>
-                    <div class="habit-title">Normal (18.5-25)</div>
-                    <div class="habit-impact-tag impact-pos">+0.0 yrs</div>
-                </div>
-                <div class="habit-pill" data-factor="bmi" data-val="overweight" onclick="selectHabit(this)">
-                    <div class="habit-icon">⚖️</div>
-                    <div class="habit-title">Overweight (25-30)</div>
+                <div class="habit-pill" data-factor="smoking" data-val="former" onclick="selectHabit(this)">
+                    <div class="habit-title">Former Smoker</div>
+                    <div class="habit-sub">Quit &gt;5 years ago</div>
                     <div class="habit-impact-tag impact-neg">-1.2 yrs</div>
                 </div>
-                <div class="habit-pill" data-factor="bmi" data-val="obese" onclick="selectHabit(this)">
-                    <div class="habit-icon">⚠️</div>
-                    <div class="habit-title">Obese (30+)</div>
+                <div class="habit-pill" data-factor="smoking" data-val="light" onclick="selectHabit(this)">
+                    <div class="habit-title">Light / Occasional</div>
+                    <div class="habit-sub">&lt;10 cigs/day or vaping</div>
                     <div class="habit-impact-tag impact-neg">-4.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="smoking" data-val="heavy" onclick="selectHabit(this)">
+                    <div class="habit-title">Daily Smoker</div>
+                    <div class="habit-sub">10+ cigs/day</div>
+                    <div class="habit-impact-tag impact-neg">-8.5 yrs</div>
                 </div>
             </div>
         </div>
 
-        <!-- Sleep -->
-        <div style="margin-bottom: 1.25rem;">
-            <label>Nightly Sleep Duration</label>
-            <div class="habit-options" id="sleepOptions">
+        <!-- Alcohol Consumption -->
+        <div class="habit-section">
+            <div class="habit-section-title">
+                <span>🍷 Alcohol Consumption</span>
+                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">The Lancet 2018</span>
+            </div>
+            <div class="habit-section-desc">Standard alcoholic beverages consumed in an average week.</div>
+            <div class="habit-options">
+                <div class="habit-pill selected" data-factor="alcohol" data-val="none" onclick="selectHabit(this)">
+                    <div class="habit-title">None / Rare</div>
+                    <div class="habit-sub">&lt;1 drink/month</div>
+                    <div class="habit-impact-tag impact-neutral">0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="moderate" onclick="selectHabit(this)">
+                    <div class="habit-title">Moderate</div>
+                    <div class="habit-sub">1–7 drinks/week</div>
+                    <div class="habit-impact-tag impact-neg">-0.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="heavy" onclick="selectHabit(this)">
+                    <div class="habit-title">Heavy</div>
+                    <div class="habit-sub">8–14 drinks/week</div>
+                    <div class="habit-impact-tag impact-neg">-2.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="alcohol" data-val="excessive" onclick="selectHabit(this)">
+                    <div class="habit-title">Excessive</div>
+                    <div class="habit-sub">15+ drinks/week</div>
+                    <div class="habit-impact-tag impact-neg">-5.5 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sleep Rest -->
+        <div class="habit-section">
+            <div class="habit-section-title">
+                <span>😴 Nightly Sleep Duration</span>
+                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">Sleep Foundation</span>
+            </div>
+            <div class="habit-section-desc">Average consecutive nightly restorative sleep.</div>
+            <div class="habit-options">
                 <div class="habit-pill" data-factor="sleep" data-val="deprived" onclick="selectHabit(this)">
-                    <div class="habit-icon">🌙</div>
-                    <div class="habit-title">Deprived (&lt;6h)</div>
+                    <div class="habit-title">Deficit</div>
+                    <div class="habit-sub">&lt;6 hours/night</div>
                     <div class="habit-impact-tag impact-neg">-2.2 yrs</div>
                 </div>
                 <div class="habit-pill selected" data-factor="sleep" data-val="optimal" onclick="selectHabit(this)">
-                    <div class="habit-icon">⭐</div>
-                    <div class="habit-title">Optimal (7-8h)</div>
+                    <div class="habit-title">Optimal Rest</div>
+                    <div class="habit-sub">7–8 hours/night</div>
                     <div class="habit-impact-tag impact-pos">+1.2 yrs</div>
                 </div>
                 <div class="habit-pill" data-factor="sleep" data-val="excessive" onclick="selectHabit(this)">
-                    <div class="habit-icon">🛌</div>
-                    <div class="habit-title">Excessive (&gt;9h)</div>
-                    <div class="habit-impact-tag impact-neg">-1.0 yrs</div>
+                    <div class="habit-title">Prolonged</div>
+                    <div class="habit-sub">&gt;9.5 hours/night</div>
+                    <div class="habit-impact-tag impact-neg">-1.2 yrs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stress & Wellbeing -->
+        <div class="habit-section">
+            <div class="habit-section-title">
+                <span>🧘 Stress & Emotional Resilience</span>
+                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:500;">Psychoneuroimmunology</span>
+            </div>
+            <div class="habit-section-desc">Overall chronic stress management and social connection.</div>
+            <div class="habit-options">
+                <div class="habit-pill selected" data-factor="stress" data-val="low" onclick="selectHabit(this)">
+                    <div class="habit-title">Low / Resilient</div>
+                    <div class="habit-sub">Good balance & support</div>
+                    <div class="habit-impact-tag impact-pos">+1.5 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="stress" data-val="moderate" onclick="selectHabit(this)">
+                    <div class="habit-title">Average Stress</div>
+                    <div class="habit-sub">Routine work/life balance</div>
+                    <div class="habit-impact-tag impact-neutral">0.0 yrs</div>
+                </div>
+                <div class="habit-pill" data-factor="stress" data-val="high" onclick="selectHabit(this)">
+                    <div class="habit-title">Chronic Burnout</div>
+                    <div class="habit-sub">Prolonged unmanaged strain</div>
+                    <div class="habit-impact-tag impact-neg">-2.0 yrs</div>
                 </div>
             </div>
         </div>
@@ -588,31 +872,96 @@
         </div>
     </div>
 
-    <!-- STEP 4: Forecast Dashboard -->
+    <!-- STEP 4: Forecast Dashboard & Life Journey Horizon -->
     <div class="ui-card step-content" id="step4">
         <div class="result-hero">
             <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600;">
-                Estimated Life Expectancy
+                Projected Lifespan
             </div>
             <div class="expectancy-number" id="predictedAge">81.3</div>
-            <div style="margin-top: 0.5rem;">
+            <div style="display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
                 <span class="delta-badge" id="deltaBadge" style="background: rgba(52, 199, 89, 0.12); color: var(--accent-green);">
                     +3.8 years vs national average
                 </span>
+                <span class="delta-badge" id="percentileBadge" style="background: rgba(0, 113, 227, 0.12); color: var(--accent-blue);">
+                    Top 25% of Global Longevity
+                </span>
             </div>
-            <div style="color: var(--text-secondary); margin-top: 0.65rem; font-size: 0.9rem;" id="remainingLifeText">
-                Approximately 56.3 years remaining based on your current age.
+            <div style="color: var(--text-secondary); margin-top: 0.75rem; font-size: 0.92rem;" id="lifeHorizonIntro">
+                Your estimated biological life journey based on current health profile and national indicators.
             </div>
         </div>
 
-        <h3 style="font-size: 1.15rem; margin-bottom: 0.75rem;">Actuarial Factor Breakdown</h3>
+        <!-- Life Journey Horizons Grid (Months, Weeks, Days Ahead) -->
+        <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">Vibrant Life Journey Ahead</h3>
+        <div class="horizon-grid">
+            <div class="horizon-card">
+                <div class="horizon-val" id="horizonMonths">640</div>
+                <div class="horizon-label">Months Ahead</div>
+            </div>
+            <div class="horizon-card">
+                <div class="horizon-val" id="horizonWeeks">2,780</div>
+                <div class="horizon-label">Weeks of Vitality</div>
+            </div>
+            <div class="horizon-card">
+                <div class="horizon-val" id="horizonDays">19,500</div>
+                <div class="horizon-label">Days to Experience</div>
+            </div>
+        </div>
+
+        <!-- Visual Chapters Timeline Bar -->
+        <div class="timeline-container">
+            <div style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 500;">
+                <span style="color: var(--text-secondary);">Years Lived: <b id="timelineAge" style="color:var(--text-primary);">28 yrs</b></span>
+                <span style="color: var(--accent-green);">Life Horizon Ahead: <b id="timelineAhead" style="color:var(--accent-green);">53.3 yrs</b></span>
+            </div>
+            <div class="timeline-bar-wrap">
+                <div class="timeline-segment-lived" id="timelineLivedBar" style="width: 35%;"></div>
+                <div class="timeline-segment-ahead" id="timelineAheadBar" style="width: 65%;"></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.35rem;">
+                <span>Birth (Age 0)</span>
+                <span id="timelineMidpoint">Age 40</span>
+                <span id="timelineEnd">Horizon: Age 81.3</span>
+            </div>
+        </div>
+
+        <!-- "Your Life in Weeks" Perspective Matrix -->
+        <div class="weeks-perspective-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;">
+                <div>
+                    <h3 style="font-size: 1.05rem; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>🗓️</span> Your Life in Weeks
+                    </h3>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0.2rem 0 0 0;">
+                        Every dot represents one single week (52 weeks per year row). Lived journey vs. vibrant weeks ahead.
+                    </p>
+                </div>
+                <div class="weeks-legend">
+                    <div class="weeks-legend-item">
+                        <span class="week-dot week-lived"></span> <span id="weeksLivedLegend">1,460 weeks lived</span>
+                    </div>
+                    <div class="weeks-legend-item">
+                        <span class="week-dot week-ahead"></span> <span id="weeksAheadLegend">2,760 weeks ahead</span>
+                    </div>
+                    <div class="weeks-legend-item">
+                        <span class="week-dot week-horizon"></span> <span>Potential Lifespan</span>
+                    </div>
+                </div>
+            </div>
+            <div class="weeks-matrix-scroll">
+                <div id="weeksMatrixGrid" class="weeks-matrix-grid"></div>
+            </div>
+        </div>
+
+        <h3 style="font-size: 1.05rem; margin: 1.5rem 0 0.75rem 0;">Actuarial Factor Breakdown</h3>
         <div style="background: var(--bg-card-secondary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 1rem 1.25rem;" id="breakdownContainer">
             <!-- Populated dynamically -->
         </div>
 
         <!-- Actionable Recommendations -->
         <div id="recoveryBox" style="margin-top: 1.25rem; display: none; background: rgba(52, 199, 89, 0.08); border: 1px solid rgba(52, 199, 89, 0.2); border-radius: var(--radius-sm); padding: 1.15rem;">
-            <h4 style="font-size: 0.92rem; color: var(--accent-green); margin-bottom: 0.4rem; font-weight: 600;">Actionable Interventions</h4>
+            <h4 style="font-size: 0.92rem; color: var(--accent-green); margin-bottom: 0.4rem; font-weight: 600;">Evidence-Based Longevity Recommendations</h4>
             <ul id="recoveryList" style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55;"></ul>
         </div>
 
@@ -625,36 +974,183 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- D3 and TopoJSON (Local) -->
 <script src="/static/d3.min.js"></script>
 <script src="/static/topojson-client.min.js"></script>
+<!-- Globe.gl (Local) -->
+<script src="/static/globe.gl.min.js"></script>
+
 <script>
+    // State management
     let currentStep = 1;
-    let selectedDiseases = new Set();
+    let selectedDiseases = new Set(['none']);
     let selectedHabits = {
         smoking: 'never',
         alcohol: 'none',
-        exercise: 'active',
+        exercise: 'cardio_strength',
+        diet: 'mediterranean',
         bmi: 'normal',
-        sleep: 'optimal'
+        sleep: 'optimal',
+        stress: 'low'
     };
-    let currentCountryBaseline = 75.3;
-
-    // 3D Globe Implementation
+    let currentCountryBaseline = 75.5;
+    let globeInstance = null;
     let globeStats = {};
-    let worldFeatures = [];
-    let canvas, ctx, projection, pathGenerator;
-    let rotation = [25, -20];
-    let isDragging = false;
-    let dragStart = [0, 0];
-    let startRotation = [0, 0];
-    let autoSpin = true;
-    let hoveredCountry = null;
-    let selectedCountryFeature = null;
-    const globeRadius = 185;
+    let worldCountriesData = [];
 
+    // Canvas fallback variables
+    let canvasGlobeActive = false;
+    let canvas, ctx, projection, pathGenerator;
+    let rotation = [-15, -25];
+    let isDragging = false;
+    let isCanvasHovered = false;
+    let lastX, lastY;
+    const globeRadius = 195;
+
+    // Helper: Lookup statistics by ISO3, ADM0, numeric ID, or name
+    function getStatForFeature(feature) {
+        if (!feature) return null;
+        const props = feature.properties || {};
+        const id = feature.id !== undefined ? String(feature.id) : null;
+        const numId = id ? parseInt(id, 10) : null;
+        const name = props.name || props.NAME;
+        return globeStats[props.ISO_A3] ||
+               globeStats[props.ADM0_A3] ||
+               globeStats[id] ||
+               (numId !== null ? globeStats[numId] : null) ||
+               (numId !== null ? globeStats[String(numId)] : null) ||
+               (name ? globeStats[name] : null) || null;
+    }
+
+    // --- Resilient Dual-Engine Globe Initializer ---
     async function initGlobe() {
-        canvas = document.getElementById('globeCanvas');
-        if (!canvas) return;
+        const vizContainer = document.getElementById('globeViz');
+        const canvasEl = document.getElementById('globeCanvas');
+        if (!vizContainer || !canvasEl) return;
+
+        try {
+            const [worldData, statsData] = await Promise.all([
+                fetch('/static/world-110m.json').then(r => r.json()),
+                fetch('/api/globe/countries-stats').then(r => r.json())
+            ]);
+            globeStats = statsData || {};
+
+            // Convert TopoJSON to GeoJSON features
+            if (worldData.objects && worldData.objects.countries && typeof topojson !== 'undefined') {
+                worldCountriesData = topojson.feature(worldData, worldData.objects.countries).features;
+            } else if (worldData.features) {
+                worldCountriesData = worldData.features;
+            } else {
+                worldCountriesData = [];
+            }
+
+            // Attempt 1: Try 3D WebGL with Globe.gl
+            if (typeof Globe === 'function') {
+                try {
+                    const width = vizContainer.clientWidth || 440;
+                    const height = vizContainer.clientHeight || 440;
+
+                    globeInstance = Globe()(vizContainer)
+                        .width(width)
+                        .height(height)
+                        .globeImageUrl('/static/earth-blue-marble.jpg')
+                        .backgroundColor('rgba(0,0,0,0)')
+                        .atmosphereColor('#3a86ff')
+                        .atmosphereAltitude(0.20)
+                        .showAtmosphere(true)
+                        .polygonsData(worldCountriesData)
+                        .polygonAltitude(d => {
+                            const selIso = (document.getElementById('countrySelect')?.value || '').toUpperCase();
+                            const stat = getStatForFeature(d);
+                            const iso3 = (stat && stat.iso3) ? stat.iso3 : (d.properties?.ISO_A3 || d.properties?.ADM0_A3 || d.id || '');
+                            return (iso3 && iso3.toUpperCase() === selIso) ? 0.06 : 0.015;
+                        })
+                        .polygonCapColor(d => {
+                            const selIso = (document.getElementById('countrySelect')?.value || '').toUpperCase();
+                            const stat = getStatForFeature(d);
+                            const iso3 = (stat && stat.iso3) ? stat.iso3 : (d.properties?.ISO_A3 || d.properties?.ADM0_A3 || d.id || '');
+                            if (iso3 && iso3.toUpperCase() === selIso) {
+                                return 'rgba(0, 113, 227, 0.85)';
+                            }
+                            const val = stat ? stat.life_expectancy : null;
+                            if (!val) return 'rgba(255, 255, 255, 0.05)';
+                            if (val >= 80) return 'rgba(52, 199, 89, 0.40)';
+                            if (val >= 75) return 'rgba(48, 163, 250, 0.40)';
+                            if (val >= 70) return 'rgba(255, 149, 0, 0.40)';
+                            return 'rgba(255, 59, 48, 0.40)';
+                        })
+                        .polygonSideColor(() => 'rgba(0, 113, 227, 0.15)')
+                        .polygonStrokeColor(d => {
+                            const selIso = (document.getElementById('countrySelect')?.value || '').toUpperCase();
+                            const stat = getStatForFeature(d);
+                            const iso3 = (stat && stat.iso3) ? stat.iso3 : (d.properties?.ISO_A3 || d.properties?.ADM0_A3 || d.id || '');
+                            return (iso3 && iso3.toUpperCase() === selIso) ? '#ffffff' : 'rgba(255, 255, 255, 0.40)';
+                        })
+                        .polygonLabel(d => {
+                            const stat = getStatForFeature(d);
+                            const name = stat ? stat.name : (d.properties?.NAME || d.properties?.name || 'Sovereign Nation');
+                            const le = stat && stat.life_expectancy ? `${Number(stat.life_expectancy).toFixed(1)} yrs` : 'Not available';
+                            const reg = stat ? stat.region : '';
+                            return `
+                                <div style="background: rgba(18, 22, 32, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 8px 12px; border-radius: 8px; font-size: 12px; color: #f5f5f7; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 8px 24px rgba(0,0,0,0.5); pointer-events: none;">
+                                    <div style="font-weight: 600; font-size: 13px; color: #fff;">${name}</div>
+                                    ${reg ? `<div style="font-size: 11px; color: #86868b; margin-bottom: 2px;">${reg}</div>` : ''}
+                                    <div style="color: #a1a1a6;">Life Expectancy: <b style="color: ${stat && stat.life_expectancy ? '#34c759' : '#8e8e93'}; font-size: 13px;">${le}</b></div>
+                                    <div style="font-size: 10px; color: #30a3fa; margin-top: 3px;">Click to select country</div>
+                                </div>
+                            `;
+                        })
+                        .onPolygonClick(d => {
+                            const stat = getStatForFeature(d);
+                            const iso3 = stat && stat.iso3 ? stat.iso3 : (d.properties?.ISO_A3 || d.properties?.ADM0_A3);
+                            if (iso3) selectCountryByIso3(iso3);
+                        });
+
+                    globeInstance.controls().autoRotate = true;
+                    globeInstance.controls().autoRotateSpeed = 0.2; // Slow, elegant rotation
+                    globeInstance.controls().enableZoom = true;
+                    globeInstance.pointOfView({ altitude: 2.2 });
+
+                    // Pause autoRotate on hover so countries are easy to point & click
+                    vizContainer.addEventListener('mouseenter', () => {
+                        if (globeInstance && globeInstance.controls()) {
+                            globeInstance.controls().autoRotate = false;
+                        }
+                    });
+                    vizContainer.addEventListener('mouseleave', () => {
+                        if (globeInstance && globeInstance.controls()) {
+                            globeInstance.controls().autoRotate = true;
+                        }
+                    });
+
+                    const initIso3 = document.getElementById('countrySelect').value || 'ROU';
+                    focusCountryOnGlobe(initIso3);
+                    return; // Successfully loaded WebGL globe!
+                } catch (webglErr) {
+                    console.warn('WebGL initialization failed, falling back to 2D Canvas Globe:', webglErr);
+                }
+            }
+
+            // Attempt 2: High-Performance 2D Canvas Orthographic Fallback
+            initCanvasGlobe();
+
+        } catch (err) {
+            console.error('Globe initialization error:', err);
+            initCanvasGlobe();
+        }
+    }
+
+    // --- HTML5 Canvas Orthographic Fallback Renderer ---
+    function initCanvasGlobe() {
+        const vizContainer = document.getElementById('globeViz');
+        const canvasEl = document.getElementById('globeCanvas');
+        if (!canvasEl) return;
+
+        if (vizContainer) vizContainer.style.display = 'none';
+        canvasEl.style.display = 'block';
+        canvasGlobeActive = true;
+
+        canvas = canvasEl;
         ctx = canvas.getContext('2d');
 
         projection = d3.geoOrthographic()
@@ -665,39 +1161,14 @@
 
         pathGenerator = d3.geoPath(projection, ctx);
 
-        try {
-            const [worldData, statsData] = await Promise.all([
-                d3.json('/static/world-110m.json'),
-                d3.json('/api/globe/countries-stats')
-            ]);
-            globeStats = statsData || {};
-            worldFeatures = topojson.feature(worldData, worldData.objects.countries).features;
+        setupCanvasEvents();
+        animateCanvasGlobe();
 
-            worldFeatures.forEach(f => {
-                f.stats = globeStats[f.id] || globeStats[f.properties?.name] || null;
-            });
-
-            const selIso3 = document.getElementById('countrySelect').value || 'ROU';
-            selectCountryByIso3(selIso3, false);
-
-            setupGlobeEvents();
-            animateGlobe();
-        } catch (err) {
-            console.error('Failed to initialize 3D Globe:', err);
-        }
+        const selIso3 = document.getElementById('countrySelect').value || 'ROU';
+        focusCanvasCountry(selIso3);
     }
 
-    function getLifeExpColor(val, isHover, isSel) {
-        if (isSel) return '#0071e3';
-        if (isHover) return '#5ac8fa';
-        if (!val) return '#242f3d';
-        if (val >= 80) return '#34c759';
-        if (val >= 75) return '#30a3fa';
-        if (val >= 70) return '#ff9500';
-        return '#ff3b30';
-    }
-
-    function renderGlobe() {
+    function renderCanvasGlobe() {
         if (!ctx || !projection) return;
         const w = canvas.width;
         const h = canvas.height;
@@ -705,173 +1176,236 @@
         projection.rotate(rotation);
         ctx.clearRect(0, 0, w, h);
 
-        // 1. Refined Ocean Sphere
+        // Ocean sphere gradient
         ctx.beginPath();
         ctx.arc(w / 2, h / 2, globeRadius, 0, 2 * Math.PI);
-        const oceanGrad = ctx.createRadialGradient(w/2 - 30, h/2 - 30, 30, w/2, h/2, globeRadius);
-        oceanGrad.addColorStop(0, '#1c2533');
-        oceanGrad.addColorStop(1, '#0e141d');
+        const oceanGrad = ctx.createRadialGradient(w/2 - 40, h/2 - 40, 20, w/2, h/2, globeRadius);
+        oceanGrad.addColorStop(0, '#1c2e42');
+        oceanGrad.addColorStop(1, '#080d14');
         ctx.fillStyle = oceanGrad;
         ctx.fill();
 
-        // 2. Countries
-        worldFeatures.forEach(feature => {
-            const isHover = (hoveredCountry && hoveredCountry.id === feature.id);
-            const isSel = (selectedCountryFeature && selectedCountryFeature.id === feature.id);
-            const val = feature.stats ? feature.stats.life_expectancy : null;
+        // Graticule grid lines
+        const graticule = d3.geoGraticule10();
+        ctx.beginPath();
+        pathGenerator(graticule);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+
+        // Render Country polygons
+        const selIso = (document.getElementById('countrySelect').value || '').toUpperCase();
+
+        worldCountriesData.forEach(feature => {
+            const stat = getStatForFeature(feature);
+            const iso3 = (stat && stat.iso3) ? stat.iso3 : (feature.properties?.ISO_A3 || feature.properties?.ADM0_A3 || feature.id || '').toUpperCase();
+            const val = stat ? stat.life_expectancy : null;
+            const isSel = iso3 && iso3 === selIso;
 
             ctx.beginPath();
             pathGenerator(feature);
-            ctx.fillStyle = getLifeExpColor(val, isHover, isSel);
+
+            if (isSel) {
+                ctx.fillStyle = '#0071e3';
+            } else if (!val) {
+                ctx.fillStyle = '#222f3e';
+            } else if (val >= 80) {
+                ctx.fillStyle = '#34c759';
+            } else if (val >= 75) {
+                ctx.fillStyle = '#30a3fa';
+            } else if (val >= 70) {
+                ctx.fillStyle = '#ff9500';
+            } else {
+                ctx.fillStyle = '#ff3b30';
+            }
             ctx.fill();
 
-            ctx.strokeStyle = isSel ? '#ffffff' : (isHover ? '#ffffff' : 'rgba(255, 255, 255, 0.15)');
-            ctx.lineWidth = isSel ? 2 : (isHover ? 1.5 : 0.5);
+            ctx.strokeStyle = isSel ? '#ffffff' : 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = isSel ? 1.5 : 0.5;
             ctx.stroke();
         });
 
-        // 3. Subtle Edge Ring
+        // Atmospheric rim lighting
         ctx.beginPath();
         ctx.arc(w / 2, h / 2, globeRadius, 0, 2 * Math.PI);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        const rimGrad = ctx.createRadialGradient(w/2, h/2, globeRadius * 0.85, w/2, h/2, globeRadius);
+        rimGrad.addColorStop(0, 'rgba(0, 113, 227, 0)');
+        rimGrad.addColorStop(1, 'rgba(58, 134, 255, 0.35)');
+        ctx.fillStyle = rimGrad;
+        ctx.fill();
     }
 
-    function animateGlobe() {
-        if (autoSpin && !isDragging) {
-            rotation[0] += 0.15;
-            renderGlobe();
+    function animateCanvasGlobe() {
+        const hasSelection = document.getElementById('countrySelect')?.value;
+        if (!isDragging && !isCanvasHovered && !hasSelection) {
+            rotation[0] += 0.08; // Smooth, gentle rotation
         }
-        requestAnimationFrame(animateGlobe);
+        renderCanvasGlobe();
+        requestAnimationFrame(animateCanvasGlobe);
     }
 
-    function setupGlobeEvents() {
-        const tooltip = document.getElementById('globeTooltip');
+    function showCanvasTooltip(stat, feature, clientX, clientY) {
+        const tt = document.getElementById('canvasTooltip');
+        if (!tt) return;
+        const name = stat ? stat.name : (feature.properties?.NAME || feature.properties?.name || 'Sovereign Nation');
+        const le = stat && stat.life_expectancy ? `${Number(stat.life_expectancy).toFixed(1)} yrs` : 'Not available';
+        const reg = stat ? stat.region : '';
+
+        tt.innerHTML = `
+            <div style="font-weight: 600; font-size: 13px; color: #fff;">${name}</div>
+            ${reg ? `<div style="font-size: 11px; color: #86868b; margin-bottom: 2px;">${reg}</div>` : ''}
+            <div style="color: #a1a1a6;">Life Expectancy: <b style="color: ${stat && stat.life_expectancy ? '#34c759' : '#8e8e93'}; font-size: 13px;">${le}</b></div>
+            <div style="font-size: 10px; color: #30a3fa; margin-top: 3px;">Click to select country</div>
+        `;
+        tt.style.left = `${clientX}px`;
+        tt.style.top = `${clientY}px`;
+        tt.style.display = 'block';
+    }
+
+    function hideCanvasTooltip() {
+        const tt = document.getElementById('canvasTooltip');
+        if (tt) tt.style.display = 'none';
+    }
+
+    function setupCanvasEvents() {
+        canvas.addEventListener('mouseenter', () => { isCanvasHovered = true; });
+        canvas.addEventListener('mouseleave', () => {
+            isCanvasHovered = false;
+            hideCanvasTooltip();
+        });
 
         canvas.addEventListener('mousedown', e => {
             isDragging = true;
-            autoSpin = false;
-            dragStart = [e.clientX, e.clientY];
-            startRotation = [rotation[0], rotation[1]];
+            lastX = e.clientX;
+            lastY = e.clientY;
+            hideCanvasTooltip();
         });
 
         window.addEventListener('mousemove', e => {
             if (isDragging) {
-                const dx = e.clientX - dragStart[0];
-                const dy = e.clientY - dragStart[1];
-                rotation[0] = startRotation[0] + dx * 0.4;
-                rotation[1] = Math.max(-80, Math.min(80, startRotation[1] - dy * 0.4));
-                renderGlobe();
-                tooltip.style.display = 'none';
-                return;
-            }
-
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            if (mouseX < 0 || mouseX > canvas.width || mouseY < 0 || mouseY > canvas.height) {
-                if (hoveredCountry) {
-                    hoveredCountry = null;
-                    renderGlobe();
-                }
-                tooltip.style.display = 'none';
-                return;
-            }
-
-            const geoCoord = projection.invert([mouseX, mouseY]);
-            if (geoCoord && !isNaN(geoCoord[0])) {
-                let found = null;
-                for (let f of worldFeatures) {
-                    if (d3.geoContains(f, geoCoord)) {
-                        found = f;
-                        break;
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                rotation[0] += dx * 0.4;
+                rotation[1] = Math.max(-80, Math.min(80, rotation[1] - dy * 0.4));
+                lastX = e.clientX;
+                lastY = e.clientY;
+                hideCanvasTooltip();
+            } else if (canvasGlobeActive) {
+                const rect = canvas.getBoundingClientRect();
+                if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+                    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+                    const coords = projection.invert([x, y]);
+                    if (coords && coords[0] !== undefined) {
+                        const hovered = worldCountriesData.find(f => d3.geoContains(f, coords));
+                        if (hovered) {
+                            const stat = getStatForFeature(hovered);
+                            showCanvasTooltip(stat, hovered, e.clientX - rect.left, e.clientY - rect.top);
+                            return;
+                        }
                     }
                 }
-
-                if (found !== hoveredCountry) {
-                    hoveredCountry = found;
-                    renderGlobe();
-                }
-
-                if (found && found.stats) {
-                    document.getElementById('ttCountryName').innerText = found.stats.name;
-                    document.getElementById('ttRegion').innerText = found.stats.region || 'Sovereign Economy';
-                    document.getElementById('ttLifeExp').innerText = found.stats.life_expectancy;
-                    tooltip.style.left = `${mouseX}px`;
-                    tooltip.style.top = `${mouseY}px`;
-                    tooltip.style.display = 'block';
-                } else if (found) {
-                    document.getElementById('ttCountryName').innerText = found.properties?.name || 'Country';
-                    document.getElementById('ttRegion').innerText = 'No warehouse baseline';
-                    document.getElementById('ttLifeExp').innerText = '--';
-                    tooltip.style.left = `${mouseX}px`;
-                    tooltip.style.top = `${mouseY}px`;
-                    tooltip.style.display = 'block';
-                } else {
-                    tooltip.style.display = 'none';
-                }
-            } else {
-                if (hoveredCountry) {
-                    hoveredCountry = null;
-                    renderGlobe();
-                }
-                tooltip.style.display = 'none';
+                hideCanvasTooltip();
             }
         });
 
-        window.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
+        window.addEventListener('mouseup', () => { isDragging = false; });
 
         canvas.addEventListener('click', e => {
-            if (hoveredCountry && hoveredCountry.stats) {
-                const iso3 = hoveredCountry.stats.iso3;
-                const dropdown = document.getElementById('countrySelect');
-                dropdown.value = iso3;
-                selectedCountryFeature = hoveredCountry;
-                renderGlobe();
-                onCountryChanged();
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const coords = projection.invert([x, y]);
+            if (!coords) return;
+
+            const clicked = worldCountriesData.find(f => d3.geoContains(f, coords));
+            if (clicked) {
+                const stat = getStatForFeature(clicked);
+                const iso3 = stat && stat.iso3 ? stat.iso3 : (clicked.properties?.ISO_A3 || clicked.properties?.ADM0_A3 || clicked.id);
+                if (iso3) selectCountryByIso3(iso3);
             }
         });
     }
 
-    function selectCountryByIso3(iso3, rotateTo = true) {
-        if (!worldFeatures.length) return;
-        const found = worldFeatures.find(f => f.stats && f.stats.iso3 === iso3);
-        if (found) {
-            selectedCountryFeature = found;
-            if (rotateTo) {
-                const centroid = d3.geoCentroid(found);
-                rotation = [-centroid[0], -centroid[1]];
-            }
-            renderGlobe();
+    function focusCanvasCountry(iso3) {
+        if (!worldCountriesData) return;
+        const target = worldCountriesData.find(f => {
+            const stat = getStatForFeature(f);
+            const fIso = stat && stat.iso3 ? stat.iso3 : (f.properties?.ISO_A3 || f.properties?.ADM0_A3 || f.id || '');
+            return fIso.toUpperCase() === iso3.toUpperCase();
+        });
+        if (target) {
+            const centroid = d3.geoCentroid(target);
+            rotation = [-centroid[0], -centroid[1]];
         }
     }
 
-    function onCountryDropdownSelected() {
-        const iso3 = document.getElementById('countrySelect').value;
-        selectCountryByIso3(iso3, true);
-        onCountryChanged();
+    function selectCountryByIso3(iso3) {
+        const sel = document.getElementById('countrySelect');
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value.toUpperCase() === iso3.toUpperCase()) {
+                sel.selectedIndex = i;
+                onCountryChanged();
+                focusCountryOnGlobe(iso3);
+                break;
+            }
+        }
+    }
+
+    function focusCountryOnGlobe(iso3) {
+        // Stop spinning when a country is selected
+        if (globeInstance && globeInstance.controls()) {
+            globeInstance.controls().autoRotate = false;
+        }
+
+        if (canvasGlobeActive) {
+            focusCanvasCountry(iso3);
+            renderCanvasGlobe();
+            return;
+        }
+
+        if (!globeInstance || !worldCountriesData) return;
+        const target = worldCountriesData.find(f => {
+            const stat = getStatForFeature(f);
+            const fIso = stat && stat.iso3 ? stat.iso3 : (f.properties?.ISO_A3 || f.properties?.ADM0_A3 || f.id);
+            return fIso && fIso.toUpperCase() === iso3.toUpperCase();
+        });
+
+        if (target && target.properties) {
+            const lat = target.properties.LABEL_Y || target.properties.latitude || 25;
+            const lng = target.properties.LABEL_X || target.properties.longitude || 15;
+            globeInstance.pointOfView({ lat, lng, altitude: 2.0 }, 1000);
+        }
+
+        // Elevate and highlight the selected country
+        globeInstance
+            .polygonAltitude(globeInstance.polygonAltitude())
+            .polygonCapColor(globeInstance.polygonCapColor())
+            .polygonStrokeColor(globeInstance.polygonStrokeColor());
     }
 
     async function onCountryChanged() {
         const iso3 = document.getElementById('countrySelect').value;
         const sex = document.getElementById('biologicalSex').value;
+        const loadingIndicator = document.getElementById('countryLoading');
+        loadingIndicator.style.display = 'inline';
 
         try {
             const resp = await fetch(`/api/country/${iso3}/baseline?sex=${sex}`);
             const data = await resp.json();
-            if (data.life_expectancy) {
+            if (data && data.life_expectancy) {
                 currentCountryBaseline = data.life_expectancy;
-                document.getElementById('previewCountryName').innerText = data.name;
+                document.getElementById('previewCountryName').innerText = `${data.name} (${data.iso3})`;
                 document.getElementById('previewRegion').innerText = data.region || 'Sovereign Economy';
-                document.getElementById('previewLifeExpectancy').innerText = data.life_expectancy.toFixed(1);
+                document.getElementById('previewLifeExpectancy').innerText = Number(data.life_expectancy).toFixed(1);
             }
         } catch (e) {
             console.error('Error fetching country baseline:', e);
+        } finally {
+            loadingIndicator.style.display = 'none';
         }
+
+        focusCountryOnGlobe(iso3);
     }
 
     async function triggerLiveSync() {
@@ -886,33 +1420,84 @@
         }
     }
 
+    function validateAgeInput() {
+        const ageInput = document.getElementById('userAge');
+        if (ageInput.value === '') return;
+        let val = parseInt(ageInput.value, 10);
+        if (isNaN(val)) return;
+        if (val > 110) ageInput.value = 110;
+        if (val < 1) ageInput.value = 1;
+    }
+
+    let forecastComputed = false;
+
     function goToStep(step) {
+        if (step === 4 && !forecastComputed) {
+            calculateForecast();
+            return;
+        }
+
         document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.step-item').forEach(el => el.classList.remove('active'));
 
-        const target = document.getElementById(`step${step}`);
+        const target = document.getElementById('step' + step);
+        const indicator = document.getElementById('stepIndicator' + step);
         if (target) target.classList.add('active');
-
-        const indicator = document.getElementById(`stepIndicator${step}`);
         if (indicator) indicator.classList.add('active');
-
-        for (let i = 1; i < step; i++) {
-            const prev = document.getElementById(`stepIndicator${i}`);
-            if (prev) prev.classList.add('completed');
-        }
 
         currentStep = step;
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
+    // Filter conditions by keyword (real-time search)
+    function filterDiseases(query) {
+        const q = (query || '').toLowerCase().trim();
+        const cards = document.querySelectorAll('#step2 .disease-card');
+        let matchedCount = 0;
+
+        cards.forEach(card => {
+            const diseaseKey = card.getAttribute('data-disease');
+            const cardText = card.textContent.toLowerCase();
+            if (diseaseKey === 'none' || !q || cardText.includes(q)) {
+                card.style.display = 'flex';
+                matchedCount++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+
+        const noMatchEl = document.getElementById('noDiseasesMatch');
+        if (noMatchEl) {
+            noMatchEl.style.display = (matchedCount <= 1 && q.length > 0) ? 'block' : 'none';
+        }
+    }
+
+    // Toggle chronic disease with dedicated Healthy option support
     function toggleDisease(card) {
-        const diseaseKey = card.getAttribute('data-disease');
-        if (selectedDiseases.has(diseaseKey)) {
-            selectedDiseases.delete(diseaseKey);
-            card.classList.remove('selected');
-        } else {
-            selectedDiseases.add(diseaseKey);
+        const disease = card.getAttribute('data-disease');
+        const healthyCard = document.querySelector('.disease-card[data-disease="none"]');
+
+        if (disease === 'none') {
+            selectedDiseases.clear();
+            selectedDiseases.add('none');
+            document.querySelectorAll('.disease-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
+        } else {
+            selectedDiseases.delete('none');
+            if (healthyCard) healthyCard.classList.remove('selected');
+
+            if (selectedDiseases.has(disease)) {
+                selectedDiseases.delete(disease);
+                card.classList.remove('selected');
+            } else {
+                selectedDiseases.add(disease);
+                card.classList.add('selected');
+            }
+
+            if (selectedDiseases.size === 0) {
+                selectedDiseases.add('none');
+                if (healthyCard) healthyCard.classList.add('selected');
+            }
         }
     }
 
@@ -927,20 +1512,23 @@
     }
 
     async function calculateForecast() {
-        const iso3 = document.getElementById('countrySelect').value;
-        const age = parseInt(document.getElementById('userAge').value);
-        const sex = document.getElementById('biologicalSex').value;
+        const iso3 = document.getElementById('countrySelect').value || 'ROU';
+        let age = parseInt(document.getElementById('userAge').value, 10);
+        if (isNaN(age) || age < 1) age = 28;
+        const sex = document.getElementById('biologicalSex').value || 'BTSX';
 
         const payload = {
             country_iso3: iso3,
             current_age: age,
             sex: sex,
             chronic_diseases: Array.from(selectedDiseases),
-            smoking: selectedHabits.smoking,
-            alcohol: selectedHabits.alcohol,
-            exercise: selectedHabits.exercise,
-            bmi: selectedHabits.bmi,
-            sleep: selectedHabits.sleep
+            smoking: selectedHabits.smoking || 'never',
+            alcohol: selectedHabits.alcohol || 'none',
+            exercise: selectedHabits.exercise || 'active',
+            diet: selectedHabits.diet || 'mediterranean',
+            bmi: selectedHabits.bmi || 'normal',
+            sleep: selectedHabits.sleep || 'optimal',
+            stress: selectedHabits.stress || 'low'
         };
 
         try {
@@ -951,72 +1539,164 @@
             });
 
             const data = await resp.json();
+            if (!resp.ok) {
+                const errMsg = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || data);
+                throw new Error(errMsg);
+            }
+
             renderForecastResults(data);
             goToStep(4);
         } catch (err) {
             console.error('Calculation error:', err);
-            alert('Failed to evaluate forecast: ' + err);
+            alert('Failed to evaluate forecast: ' + err.message);
         }
     }
 
     function renderForecastResults(data) {
-        document.getElementById('predictedAge').innerText = data.predicted_life_expectancy.toFixed(1);
-        
-        const delta = data.net_delta_years;
+        forecastComputed = true;
+        const predictedLe = Number(data.predicted_life_expectancy ?? data.predicted_le ?? 80.0);
+        const baselineLe = Number(data.baseline_life_expectancy ?? data.baseline_le ?? 75.0);
+        const netDelta = Number(data.net_delta_years ?? data.net_total_impact ?? (predictedLe - baselineLe));
+        const remainingYears = Number(data.years_remaining ?? data.remaining_years ?? Math.max(1, predictedLe - (data.current_age || 28)));
+        const currentAge = Number(data.current_age || 28);
+        const diseasePenalty = Number(data.chronic_disease_penalty ?? data.disease_penalty ?? 0.0);
+        const lifestyleDelta = Number(data.lifestyle_delta ?? data.habit_delta ?? 0.0);
+        const globalPercentile = Number(data.global_percentile ?? 75);
+
+        const monthsAhead = data.months_remaining ?? Math.round(remainingYears * 12);
+        const weeksAhead = data.weeks_remaining ?? Math.round(remainingYears * 52.14);
+        const daysAhead = data.days_remaining ?? Math.round(remainingYears * 365.25);
+
+        document.getElementById('predictedAge').innerText = predictedLe.toFixed(1);
+
         const deltaBadge = document.getElementById('deltaBadge');
-        if (delta >= 0) {
-            deltaBadge.innerText = `+${delta.toFixed(1)} years vs national baseline`;
+        if (netDelta >= 0) {
+            deltaBadge.innerText = `+${netDelta.toFixed(1)} years vs national baseline`;
             deltaBadge.style.color = 'var(--accent-green)';
             deltaBadge.style.background = 'rgba(52, 199, 89, 0.12)';
         } else {
-            deltaBadge.innerText = `${delta.toFixed(1)} years vs national baseline`;
+            deltaBadge.innerText = `${netDelta.toFixed(1)} years vs national baseline`;
             deltaBadge.style.color = 'var(--accent-red)';
             deltaBadge.style.background = 'rgba(255, 59, 48, 0.12)';
         }
 
-        document.getElementById('remainingLifeText').innerText = 
-            `Approximately ${data.remaining_years.toFixed(1)} years remaining based on your current age (${data.current_age}).`;
+        const percBadge = document.getElementById('percentileBadge');
+        percBadge.innerText = `Top ${Math.round(100 - globalPercentile)}% Global Longevity (${globalPercentile}th Percentile)`;
 
-        // Breakdown items
-        let breakdownHtml = '';
-        breakdownHtml += `
+        document.getElementById('horizonMonths').innerText = monthsAhead.toLocaleString();
+        document.getElementById('horizonWeeks').innerText = weeksAhead.toLocaleString();
+        document.getElementById('horizonDays').innerText = daysAhead.toLocaleString();
+
+        document.getElementById('timelineAge').innerText = `${currentAge} yrs`;
+        document.getElementById('timelineAhead').innerText = `${remainingYears.toFixed(1)} yrs ahead`;
+
+        const livedPct = Math.min(95, Math.max(5, (currentAge / predictedLe) * 100));
+        const aheadPct = 100 - livedPct;
+        document.getElementById('timelineLivedBar').style.width = `${livedPct}%`;
+        document.getElementById('timelineAheadBar').style.width = `${aheadPct}%`;
+
+        document.getElementById('timelineMidpoint').innerText = `Age ${Math.round((currentAge + predictedLe) / 2)}`;
+        document.getElementById('timelineEnd').innerText = `Horizon: Age ${predictedLe.toFixed(1)}`;
+
+        let breakdownHtml = `
             <div class="breakdown-row">
-                <span style="color:var(--text-secondary);">${data.country_name} Sovereign Baseline</span>
-                <span style="font-weight:600;">${data.baseline_life_expectancy.toFixed(1)} yrs</span>
+                <span style="color:var(--text-secondary);">${data.country_name || 'National'} Sovereign Baseline</span>
+                <span style="font-weight:600;">${baselineLe.toFixed(1)} yrs</span>
             </div>
             <div class="breakdown-row">
                 <span style="color:var(--text-secondary);">Chronic Medical Conditions</span>
-                <span style="font-weight:600; color:${data.chronic_disease_penalty < 0 ? 'var(--accent-red)' : 'var(--text-primary)'};">
-                    ${data.chronic_disease_penalty < 0 ? data.chronic_disease_penalty.toFixed(1) : '+0.0'} yrs
+                <span style="font-weight:600; color:${diseasePenalty < 0 ? 'var(--accent-red)' : 'var(--accent-green)'};">
+                    ${diseasePenalty < 0 ? diseasePenalty.toFixed(1) : '+0.0'} yrs
                 </span>
             </div>
             <div class="breakdown-row">
-                <span style="color:var(--text-secondary);">Lifestyle & Modifiable Habits</span>
-                <span style="font-weight:600; color:${data.lifestyle_delta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">
-                    ${data.lifestyle_delta >= 0 ? '+' : ''}${data.lifestyle_delta.toFixed(1)} yrs
+                <span style="color:var(--text-secondary);">Lifestyle, Diet & Habits</span>
+                <span style="font-weight:600; color:${lifestyleDelta >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">
+                    ${lifestyleDelta >= 0 ? '+' : ''}${lifestyleDelta.toFixed(1)} yrs
                 </span>
             </div>
             <div class="breakdown-row" style="font-weight:600; border-top:1px solid var(--border-subtle); margin-top:0.35rem; padding-top:0.75rem;">
                 <span>Net Predicted Lifespan</span>
-                <span style="color:var(--accent-blue); font-size:1.05rem;">${data.predicted_life_expectancy.toFixed(1)} yrs</span>
+                <span style="color:var(--accent-blue); font-size:1.05rem;">${predictedLe.toFixed(1)} yrs</span>
             </div>
         `;
         document.getElementById('breakdownContainer').innerHTML = breakdownHtml;
 
-        // Recommendations
         const recBox = document.getElementById('recoveryBox');
         const recList = document.getElementById('recoveryList');
-        if (data.actionable_interventions && data.actionable_interventions.length > 0) {
-            recList.innerHTML = data.actionable_interventions.map(i => `<li>${i}</li>`).join('');
+        const recs = data.potential_recoveries || data.actionable_interventions || [];
+        if (recs.length > 0) {
+            recList.innerHTML = recs.map(i => `<li>${i}</li>`).join('');
             recBox.style.display = 'block';
         } else {
             recBox.style.display = 'none';
         }
+
+        // Render the "Life in Weeks" Matrix
+        renderLifeInWeeksMatrix(currentAge, predictedLe);
+    }
+
+    function renderLifeInWeeksMatrix(currentAge, predictedLe) {
+        const container = document.getElementById('weeksMatrixGrid');
+        if (!container) return;
+
+        const weeksLived = Math.max(0, Math.round(currentAge * 52.14));
+        const totalWeeksPredicted = Math.max(weeksLived + 52, Math.round(predictedLe * 52.14));
+        const weeksAhead = Math.max(0, totalWeeksPredicted - weeksLived);
+
+        const livedLegend = document.getElementById('weeksLivedLegend');
+        const aheadLegend = document.getElementById('weeksAheadLegend');
+        if (livedLegend) livedLegend.innerText = `${weeksLived.toLocaleString()} weeks lived (${currentAge} yrs)`;
+        if (aheadLegend) aheadLegend.innerText = `${weeksAhead.toLocaleString()} weeks ahead (${(predictedLe - currentAge).toFixed(1)} yrs)`;
+
+        const maxYear = Math.max(90, Math.ceil(predictedLe) + 2);
+        let rowsHtml = '';
+
+        for (let yr = 0; yr <= maxYear; yr++) {
+            const isDecade = yr % 10 === 0;
+            const label = isDecade ? `Age ${yr}` : (yr % 5 === 0 ? `${yr}` : '');
+
+            let dots = '';
+            for (let wk = 0; wk < 52; wk++) {
+                const globalWk = yr * 52 + wk;
+                let dotClass = 'week-horizon';
+                let tooltip = `Age ${yr}, Week ${wk + 1}`;
+
+                if (globalWk < weeksLived) {
+                    dotClass = 'week-lived';
+                    tooltip += ' · Lived';
+                } else if (globalWk < totalWeeksPredicted) {
+                    dotClass = 'week-ahead';
+                    tooltip += ' · Vibrant Horizon Ahead';
+                } else {
+                    dotClass = 'week-horizon';
+                    tooltip += ' · Potential Longevity Horizon';
+                }
+
+                dots += `<span class="week-dot ${dotClass}" title="${tooltip}"></span>`;
+            }
+
+            rowsHtml += `
+                <div class="weeks-year-row">
+                    <div class="weeks-year-label">${label}</div>
+                    <div class="weeks-dots-wrap">${dots}</div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = rowsHtml;
     }
 
     window.addEventListener('DOMContentLoaded', () => {
         initGlobe();
         onCountryChanged();
+        const ageInput = document.getElementById('userAge');
+        if (ageInput) {
+            ageInput.addEventListener('blur', () => {
+                let val = parseInt(ageInput.value, 10);
+                if (isNaN(val) || val < 1) ageInput.value = 28;
+            });
+        }
     });
 </script>
 {% endblock %}
