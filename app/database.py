@@ -17,9 +17,14 @@ def get_engine():
     return engine
 
 
+def get_session_factory():
+    """Return the sessionmaker bound to the central database engine."""
+    return SessionLocal
+
+
 def get_db():
     """FastAPI dependency: one session per request."""
-    db = SessionLocal()
+    db = get_session_factory()()
     try:
         yield db
     finally:
