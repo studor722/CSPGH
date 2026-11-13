@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}{{ action }} · Global Health Observations{% endblock %}
+
+{% block content %}
+<div class="ui-card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+        <div>
+            <h1>{{ action }}</h1>
+            <p class="subhead">{{ description }}</p>
+        </div>
+        <a href="/observations" class="btn btn-secondary">&larr; Back to Observations</a>
+    </div>
+
+    <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; margin-top: 1.15rem;">
+        <span class="status-badge status-ok">{{ ok_count }} ok</span>
+        <span class="status-badge status-skipped">{{ skipped_count }} skipped</span>
+        <span class="status-badge status-failed">{{ failed_count }} failed</span>
+    </div>
+</div>
+
+<div class="ui-card">
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                    <th style="padding: 0.65rem 0.5rem;">Source</th>
+                    <th style="padding: 0.65rem 0.5rem;">Item</th>
+                    <th style="padding: 0.65rem 0.5rem;">Status</th>
+                    <th style="padding: 0.65rem 0.5rem;">Detail</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in results %}
+                <tr style="border-bottom: 1px solid var(--border-subtle);">
+                    <td style="padding: 0.7rem 0.5rem; font-weight: 500; color: var(--text-primary);">{{ r.source }}</td>
+                    <td style="padding: 0.7rem 0.5rem; font-family: monospace; font-size: 0.84rem; color: var(--text-secondary);">{{ r.item }}</td>
+                    <td style="padding: 0.7rem 0.5rem;">
+                        <span class="status-badge status-{{ r.status.value }}">{{ r.status.value }}</span>
+                    </td>
+                    <td style="padding: 0.7rem 0.5rem; color: var(--text-secondary);">{{ r.detail }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">
+                        No ETL steps were configured for this action.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

@@ -5,71 +5,125 @@
 {% block content %}
 <div class="ui-card" style="margin-bottom: 1.5rem;">
     <h1>Global Health Observations</h1>
-    <p class="subhead" style="margin-bottom: 1.5rem;">
-        Sovereign demographic and public health indicators harvested from WHO Global Health Observatory, World Bank, and Our World in Data.
+    <p class="subhead">
+        Server-side filtered demographic and public health indicators harvested from WHO Global Health Observatory, World Bank, and Our World in Data.
     </p>
 
-    <form method="get" action="/observations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) 110px 90px; gap: 0.85rem; align-items: end;">
+    <div class="etl-actions">
+        <form method="post" action="/actions/extract">
+            <button type="submit" class="btn btn-outline">Extract fresh data from sources</button>
+        </form>
+        <form method="post" action="/actions/load">
+            <button type="submit" class="btn btn-primary">Transform &amp; load data from local JSON/CSV files</button>
+        </form>
+    </div>
+
+    <form method="get" action="/observations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.85rem; align-items: end; margin-top: 1.35rem;">
         <div>
-            <label>Country</label>
-            <select name="country_iso3" class="form-control">
+            <label for="filter-country">Country</label>
+            <select id="filter-country" name="country" class="form-control">
                 <option value="">All Countries</option>
-                {% for c in countries %}
-                <option value="{{ c.iso3 }}" {% if selected_country == c.iso3 %}selected{% endif %}>
-                    {{ c.name }} ({{ c.iso3 }})
-                </option>
+                {% for region_name, country_opts in options.countries|groupby('group') %}
+                <optgroup label="{{ region_name }}">
+                    {% for opt in country_opts %}
+                    <option value="{{ opt.value }}" {% if criteria.country_iso3 == opt.value %}selected{% endif %}>
+                        {{ opt.label }}
+                    </option>
+                    {% endfor %}
+                </optgroup>
                 {% endfor %}
             </select>
         </div>
 
         <div>
-            <label>Indicator</label>
-            <select name="indicator_code" class="form-control">
+            <label for="filter-indicator">Indicator</label>
+            <select id="filter-indicator" name="indicator" class="form-control">
                 <option value="">All Indicators</option>
-                {% for ind in indicators %}
-                <option value="{{ ind.code }}" {% if selected_indicator == ind.code %}selected{% endif %}>
-                    {{ ind.name }}
+                {% for opt in options.indicators %}
+                <option value="{{ opt.value }}" {% if criteria.indicator_code == opt.value %}selected{% endif %}>
+                    {{ opt.label }}
                 </option>
                 {% endfor %}
             </select>
         </div>
 
         <div>
-            <label>Calendar Year <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: normal;">(2000–2024)</span></label>
-            <input type="number" name="year" class="form-control" placeholder="e.g. 2024" min="1950" max="2030" value="{{ selected_year }}">
-        </div>
-
-        <div>
-            <label>IQR Outlier</label>
-            <select name="is_outlier" class="form-control">
-                <option value="">All Values</option>
-                <option value="true" {% if selected_outlier == 'true' %}selected{% endif %}>Only Outliers</option>
-                <option value="false" {% if selected_outlier == 'false' %}selected{% endif %}>Normal Only</option>
+            <label for="filter-region">Region</label>
+            <select id="filter-region" name="region" class="form-control">
+                <option value="">All Regions</option>
+                {% for opt in options.regions %}
+                <option value="{{ opt.value }}" {% if criteria.region == opt.value %}selected{% endif %}>
+                    {{ opt.label }}
+                </option>
+                {% endfor %}
             </select>
         </div>
 
-        <button type="submit" class="btn btn-primary" style="height: 38px;">
-            Filter
-        </button>
+        <div>
+            <label for="filter-sex">Sex</label>
+            <select id="filter-sex" name="sex" class="form-control">
+                <option value="">All</option>
+                {% for code, label in sex_choices %}
+                <option value="{{ code }}" {% if criteria.sex and criteria.sex.value == code %}selected{% endif %}>
+                    {{ label }} ({{ code }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
 
-        <a href="/observations" class="btn btn-secondary" style="height: 38px; display: inline-flex; align-items: center; justify-content: center;">
-            Reset
-        </a>
+        <div>
+            <label for="filter-year-from">Year From</label>
+            <input id="filter-year-from" type="number" name="year_from" class="form-control" placeholder="e.g. 2015" min="1950" max="2030" value="{{ criteria.year_from if criteria.year_from is not none else '' }}">
+        </div>
+
+        <div>
+            <label for="filter-year-to">Year To</label>
+            <input id="filter-year-to" type="number" name="year_to" class="form-control" placeholder="e.g. 2024" min="1950" max="2030" value="{{ criteria.year_to if criteria.year_to is not none else '' }}">
+        </div>
+
+        <div>
+            <label for="filter-outlier">IQR Outlier</label>
+            <select id="filter-outlier" name="is_outlier" class="form-control">
+                <option value="">All Values</option>
+                <option value="true" {% if criteria.is_outlier is sameas true %}selected{% endif %}>Only Outliers</option>
+                <option value="false" {% if criteria.is_outlier is sameas false %}selected{% endif %}>Normal Only</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">
+                Apply filters
+            </button>
+            <a href="/observations" class="btn btn-secondary">
+                Reset
+            </a>
+        </div>
     </form>
+
+    {% if filter_issues %}
+    <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
+        {% for issue in filter_issues %}
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: rgba(255, 149, 0, 0.12); border: 1px solid rgba(255, 149, 0, 0.35); color: var(--text-primary); font-size: 0.86rem;">
+            <span>{{ issue.message }}</span>
+            <a href="{{ issue.fix_url }}" class="btn btn-secondary" style="padding: 0.35rem 0.8rem; font-size: 0.8rem;">{{ issue.fix_label }}</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 
 <div class="ui-card">
     <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
         <div style="font-weight: 600; font-size: 0.95rem; color: var(--text-primary);">
-            Showing {{ observations|length }} observations
-            {% if selected_outlier == 'true' %}
-            <span style="font-size: 0.75rem; background: rgba(255, 149, 0, 0.15); color: var(--accent-orange); padding: 2px 8px; border-radius: 999px; margin-left: 0.5rem;">
+            Showing {{ observations.items|length }} of {{ observations.total_items }} observations
+            {% if criteria.is_outlier is sameas true %}
+            <span class="status-badge status-skipped" style="margin-left: 0.45rem;">
                 Filtered to Outliers
             </span>
             {% endif %}
         </div>
         <div style="font-size: 0.78rem; color: var(--text-muted);">
-            PostgreSQL <code>observation</code> warehouse table (Limit 100)
+            PostgreSQL <code>observation</code> warehouse table ({{ observations.size }} rows per page)
         </div>
     </div>
 
@@ -78,6 +132,7 @@
             <thead>
                 <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;">
                     <th style="padding: 0.65rem 0.5rem;">Country</th>
+                    <th style="padding: 0.65rem 0.5rem;">Region</th>
                     <th style="padding: 0.65rem 0.5rem;">Indicator</th>
                     <th style="padding: 0.65rem 0.5rem;">Year</th>
                     <th style="padding: 0.65rem 0.5rem;">Sex</th>
@@ -87,74 +142,75 @@
                 </tr>
             </thead>
             <tbody>
-                {% for o in observations %}
+                {% for o in observations.items %}
                 <tr style="border-bottom: 1px solid var(--border-subtle);">
                     <td style="padding: 0.65rem 0.5rem; font-weight: 500; color: var(--text-primary);">
                         {{ o.country_name }} <span style="color: var(--text-muted); font-size: 0.78rem;">{{ o.country_iso3 }}</span>
                     </td>
-                    <td style="padding: 0.65rem 0.5rem; color: var(--text-secondary); max-width: 320px;">
-                        {{ o.indicator_name }}
+                    <td style="padding: 0.65rem 0.5rem; color: var(--text-secondary); font-size: 0.82rem;">
+                        {{ o.region or '—' }}
+                    </td>
+                    <td style="padding: 0.65rem 0.5rem; color: var(--text-secondary); max-width: 300px;">
+                        {{ o.indicator_name }} <span style="color: var(--text-muted); font-size: 0.76rem;">({{ o.indicator_code }})</span>
                     </td>
                     <td style="padding: 0.65rem 0.5rem; font-variant-numeric: tabular-nums;">
                         {{ o.year }}
                     </td>
                     <td style="padding: 0.65rem 0.5rem; color: var(--text-muted); font-size: 0.8rem;">
-                        {{ o.sex }}
+                        {{ o.sex.value if o.sex.value is defined else o.sex }}
                     </td>
                     <td style="padding: 0.65rem 0.5rem; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-primary);">
                         {{ "%.2f"|format(o.value) if o.value is not none else "—" }}
                     </td>
                     <td style="padding: 0.65rem 0.5rem; color: var(--text-muted); font-size: 0.78rem;">
-                        {{ o.unit or '' }}
+                        {{ o.unit }}
                     </td>
                     <td style="padding: 0.65rem 0.5rem; text-align: center;">
                         {% if o.is_outlier %}
-                        <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.72rem; font-weight: 600; background: rgba(255, 149, 0, 0.14); color: var(--accent-orange);">
-                            Outlier
-                        </span>
+                        <span class="status-badge status-skipped">Outlier</span>
                         {% else %}
-                        <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.72rem; font-weight: 500; background: rgba(52, 199, 89, 0.12); color: var(--accent-green);">
-                            Normal
-                        </span>
+                        <span class="status-badge status-ok">Normal</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="7" style="text-align: center; padding: 2.5rem 1.5rem;">
-                        <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">🔍</div>
-                        <div style="font-weight: 600; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.35rem;">
+                    <td colspan="8" style="text-align: center; padding: 2.5rem 1.5rem;">
+                        <div style="font-weight: 600; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.45rem;">
                             No observations matched the specified filter criteria
                         </div>
-                        {% if selected_year and available_years_info %}
+                        {% if year_bounds %}
                         <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 580px; margin: 0 auto 1.25rem auto; line-height: 1.5;">
-                            You searched for calendar year <b style="color:var(--text-primary);">{{ selected_year }}</b>. Surveillance records in the database for this indicator span from 
-                            <b style="color:var(--accent-blue);">{{ available_years_info.min_year }}</b> to <b style="color:var(--accent-green);">{{ available_years_info.max_year }}</b> ({{ available_years_info.total_count }} observations recorded). WHO Global Health Observatory reports are published with a 1–2 year surveillance reporting lag.
+                            Matching records without year bounds span from
+                            <b style="color: var(--accent-blue);">{{ year_bounds.min_year }}</b> to
+                            <b style="color: var(--accent-green);">{{ year_bounds.max_year }}</b>
+                            ({{ year_bounds.total_count }} observations recorded).
                         </p>
-                        <div style="display: flex; gap: 0.65rem; justify-content: center; flex-wrap: wrap;">
-                            <a href="/observations?country_iso3={{ selected_country }}&indicator_code={{ selected_indicator }}&year={{ available_years_info.max_year }}" class="btn btn-primary" style="font-size: 0.82rem; padding: 6px 14px;">
-                                View Latest Data ({{ available_years_info.max_year }})
-                            </a>
-                            <a href="/observations?country_iso3={{ selected_country }}&indicator_code={{ selected_indicator }}" class="btn btn-secondary" style="font-size: 0.82rem; padding: 6px 14px;">
-                                View All Years ({{ available_years_info.total_count }} Records)
-                            </a>
-                            <a href="/observations" class="btn btn-outline" style="font-size: 0.82rem; padding: 6px 14px;">
-                                Reset All Filters
-                            </a>
-                        </div>
-                        {% else %}
-                        <p style="font-size: 0.85rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto 1rem auto;">
-                            Try selecting "All Countries" or clearing the Year filter to view broader global observations.
-                        </p>
-                        <a href="/observations" class="btn btn-secondary" style="font-size: 0.82rem; padding: 6px 14px; display: inline-block;">
-                            Reset Filters
-                        </a>
                         {% endif %}
+                        <a href="/observations" class="btn btn-secondary">Clear active filters</a>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+
+    <div class="pagination-bar">
+        {% if previous_url %}
+        <a href="{{ previous_url }}" class="btn btn-secondary">&larr; Previous</a>
+        {% else %}
+        <span class="btn btn-secondary btn-disabled">&larr; Previous</span>
+        {% endif %}
+
+        <span class="pagination-meta">
+            Page {{ observations.number }} of {{ observations.total_pages }}
+        </span>
+
+        {% if next_url %}
+        <a href="{{ next_url }}" class="btn btn-secondary">Next &rarr;</a>
+        {% else %}
+        <span class="btn btn-secondary btn-disabled">Next &rarr;</span>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

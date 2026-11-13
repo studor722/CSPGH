@@ -337,6 +337,64 @@
             font-size: 0.75rem;
             color: var(--text-muted);
         }
+
+        .etl-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .etl-actions form {
+            margin: 0;
+        }
+
+        .pagination-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-subtle);
+            flex-wrap: wrap;
+        }
+
+        .pagination-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .btn-disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 0.74rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .status-ok {
+            background: rgba(52, 199, 89, 0.14);
+            color: var(--accent-green);
+        }
+
+        .status-skipped {
+            background: rgba(255, 149, 0, 0.14);
+            color: var(--accent-orange);
+        }
+
+        .status-failed {
+            background: rgba(255, 59, 48, 0.14);
+            color: var(--accent-red);
+        }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
