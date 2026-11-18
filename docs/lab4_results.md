@@ -110,6 +110,10 @@ All endpoints were verified against the running FastAPI application (`uvicorn ap
 - **Invalid query parameter (`GET /api/indicators/OWID_LIFE_EXPECTANCY/period-averages?country=ROU&period_years=0`) → `422 Unprocessable Content`**
   Rejected by FastAPI `Query(ge=1)` validation before the service is called.
 
+### 4. Interactive OpenAPI Documentation (`/api/docs`)
+
+![Swagger UI executing GET /api/indicators/{indicator_code}/period-averages](img/api_docs_period_averages.jpg)
+
 ---
 
 ## Task 4.2: Client-Side Rendering vs. Server-Side Rendering
@@ -121,6 +125,18 @@ All endpoints were verified against the running FastAPI application (`uvicorn ap
 | **Changing a filter** | Full browser navigation (`GET /observations?...`) and full page reload | `fetch()` calls to `/api/countries` and `/api/indicators/{code}/period-averages`; only the chart and table update |
 | **Concurrency** | Browser cancels previous page navigation automatically | `AbortController` in `period-averages-page.js` cancels outdated in-flight `fetch()` requests |
 | **API reuse** | HTML-only endpoint | Same JSON REST API (`/api/docs`) usable by mobile apps, notebooks, and scripts |
+
+### Browser Verification & Network Inspection
+
+1. **Initial page load (`GET /period-averages`):**
+   The shell loads once and JavaScript fetches `/api/indicators`, `/api/regions`, `/api/countries?region=Europe+%26+Central+Asia`, and `/api/indicators/OWID_LIFE_EXPECTANCY/period-averages` (`200 OK`, initiated by `api-client.js`):
+
+   ![Initial /period-averages load with DevTools Network tab](img/period_averages_initial.jpg)
+
+2. **Changing a filter (no page reload):**
+   Switching the indicator to `Life expectancy at birth (years) (WHOSIS_000001)` triggers a single `fetch()` call to `/api/indicators/WHOSIS_000001/period-averages` and updates only the chart and table:
+
+   ![Filtered /period-averages update without page reload](img/period_averages_filtered.jpg)
 
 ---
 
