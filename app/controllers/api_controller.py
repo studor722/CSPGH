@@ -93,38 +93,6 @@ def get_observations_api(
     ]
 
 
-@router.get("/countries")
-def get_countries_api(
-    service: ObservationService = Depends(get_observation_service),
-):
-    return [
-        {
-            "iso3": c.iso3,
-            "iso2": c.iso2,
-            "name": c.name,
-            "region": c.region,
-            "income_group": c.income_group,
-        }
-        for c in service.list_countries()
-    ]
-
-
-@router.get("/indicators")
-def get_indicators_api(
-    service: ObservationService = Depends(get_observation_service),
-):
-    return [
-        {
-            "indicator_id": i.indicator_id,
-            "code": i.code,
-            "name": i.name,
-            "unit": i.unit,
-            "source_id": i.source_id,
-        }
-        for i in service.list_indicators()
-    ]
-
-
 @router.get("/chronic-diseases")
 def get_chronic_diseases():
     return CHRONIC_DISEASE_IMPACTS

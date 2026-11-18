@@ -8,7 +8,7 @@ from app.dependencies import get_observation_service
 from app.ml_model import CHRONIC_DISEASE_IMPACTS
 from app.services.observation_service import ObservationService
 
-router = APIRouter(tags=["calculator"])
+router = APIRouter(include_in_schema=False, tags=["calculator"])
 templates = Jinja2Templates(directory="app/templates")
 
 

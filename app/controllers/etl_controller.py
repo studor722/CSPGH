@@ -8,7 +8,7 @@ from app.dependencies import get_etl_service
 from app.services.etl_service import EtlService
 from etl.step_result import StepResult, StepStatus
 
-router = APIRouter(prefix="/actions", tags=["etl"])
+router = APIRouter(prefix="/actions", include_in_schema=False, tags=["etl"])
 templates = Jinja2Templates(directory="app/templates")
 
 

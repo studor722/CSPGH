@@ -15,7 +15,7 @@ from app.domain import ObservationCriteria
 from app.models import Sex
 from app.services.observation_service import ObservationService
 
-router = APIRouter(tags=["observations"])
+router = APIRouter(include_in_schema=False, tags=["observations"])
 templates = Jinja2Templates(directory="app/templates")
 
 SEX_CHOICES: tuple[tuple[str, str], ...] = (
