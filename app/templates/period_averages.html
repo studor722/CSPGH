@@ -1,0 +1,250 @@
+{% extends "base.html" %}
+
+{% block title %}Averages per period · Global Health Data Platform{% endblock %}
+
+{% block extra_head %}
+<style>
+    :root {
+        --series-1: #0071e3;
+        --series-2: #34c759;
+        --series-3: #ff9500;
+        --series-4: #af52de;
+        --series-5: #ff3b30;
+        --series-6: #5ac8fa;
+        --series-7: #ff2d55;
+        --series-8: #5856d6;
+        --chart-grid: rgba(0, 0, 0, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --series-1: #0a84ff;
+            --series-2: #30d158;
+            --series-3: #ff9f0a;
+            --series-4: #bf5af2;
+            --series-5: #ff453a;
+            --series-6: #64d2ff;
+            --series-7: #ff375f;
+            --series-8: #5e5ce6;
+            --chart-grid: rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.5rem;
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+
+    .filter-field {
+        display: flex;
+        flex-direction: column;
+    }
+
+    details.dropdown {
+        position: relative;
+    }
+
+    details.dropdown summary {
+        list-style: none;
+        width: 100%;
+        padding: 0.65rem 0.85rem;
+        border-radius: var(--radius-sm);
+        background: var(--bg-card-secondary);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-primary);
+        font-size: 0.95rem;
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    details.dropdown summary::after {
+        content: "▾";
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+
+    details.dropdown[open] summary {
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+    }
+
+    #country-list {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 4px);
+        z-index: 30;
+        max-height: 260px;
+        overflow-y: auto;
+        list-style: none;
+        background: var(--bg-card);
+        border: 1px solid var(--border-hover);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--card-shadow-hover);
+        padding: 0.35rem;
+    }
+
+    #country-list li label {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.5rem;
+        padding: 0.4rem 0.55rem;
+        margin: 0;
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--text-primary);
+        font-size: 0.88rem;
+        font-weight: 400;
+    }
+
+    #country-list li label:hover {
+        background: var(--bg-card-secondary);
+    }
+
+    #country-list input[type="checkbox"] {
+        accent-color: var(--accent-blue);
+        width: 15px;
+        height: 15px;
+    }
+
+    #status {
+        margin-top: 1rem;
+        font-size: 0.88rem;
+        color: var(--text-secondary);
+        min-height: 1.3em;
+    }
+
+    #status.status-error {
+        color: var(--accent-red);
+        font-weight: 500;
+    }
+
+    .chart-box {
+        position: relative;
+        height: 380px;
+        width: 100%;
+    }
+
+    .table-wrap {
+        overflow-x: auto;
+    }
+
+    table.striped {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+
+    table.striped th,
+    table.striped td {
+        padding: 0.65rem 0.75rem;
+        border-bottom: 1px solid var(--border-subtle);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    table.striped th {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    table.striped th.number,
+    table.striped td.number {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+
+    table.striped tbody tr:nth-child(even) {
+        background: var(--bg-card-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div
+    id="period-averages-app"
+    data-first-year="{{ first_year }}"
+    data-last-year="{{ last_year }}"
+    data-max-countries="{{ max_countries }}"
+>
+    <div class="page-header">
+        <div>
+            <h1>Indicator Averages per Period</h1>
+            <p class="subhead">
+                Client-side rendered comparison across {{ first_year }}&ndash;{{ last_year }} powered by the JSON REST API.
+            </p>
+        </div>
+        <a href="{{ api_docs_url }}" target="_blank" class="btn btn-outline">
+            REST API Docs
+        </a>
+    </div>
+
+    <section class="ui-card" aria-label="Filters">
+        <div class="filters-grid">
+            <div class="filter-field">
+                <label for="indicator">Indicator</label>
+                <select id="indicator"></select>
+            </div>
+            <div class="filter-field">
+                <label for="region">Region</label>
+                <select id="region"></select>
+            </div>
+            <div class="filter-field">
+                <label for="period-years">Period length</label>
+                <select id="period-years"></select>
+            </div>
+            <div class="filter-field">
+                <label for="sex">Sex</label>
+                <select id="sex"></select>
+            </div>
+            <div class="filter-field">
+                <label>Countries (max {{ max_countries }})</label>
+                <details class="dropdown">
+                    <summary id="country-summary">Choose countries</summary>
+                    <ul id="country-list"></ul>
+                </details>
+            </div>
+        </div>
+        <p id="status" role="status" aria-live="polite">Loading&hellip;</p>
+    </section>
+
+    <section class="ui-card" aria-label="Period averages chart">
+        <div class="chart-box">
+            <canvas
+                id="averages-chart"
+                role="img"
+                aria-label="Line chart of the averages per period for selected countries"
+            ></canvas>
+        </div>
+    </section>
+
+    <section class="ui-card" aria-label="Period averages table">
+        <div class="table-wrap">
+            <table id="averages-table" class="striped"></table>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script type="module" src="{{ url_for('static', path='js/period-averages-page.js') }}"></script>
+{% endblock %}
