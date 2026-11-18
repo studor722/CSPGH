@@ -144,8 +144,11 @@ class ObservationService:
 
         return issues
 
-    def list_countries(self) -> list[CountrySummary]:
-        return self._repo.list_country_records()
+    def list_countries(self, region: str | None = None) -> list[CountrySummary]:
+        return self._repo.list_country_records(region=region)
+
+    def list_regions(self) -> list[Option]:
+        return self._repo.list_regions()
 
     def list_indicators(self) -> list[IndicatorSummary]:
         return self._repo.list_indicator_records()

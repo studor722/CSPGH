@@ -131,3 +131,63 @@ class GlobeCountryStat:
     life_expectancy: float | None
     year: int
 
+
+@dataclass(frozen=True, slots=True)
+class IndicatorInfo:
+    """Public indicator metadata used by period-average and indicator endpoints."""
+
+    code: str
+    name: str
+    unit: str
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodAverageQuery:
+    """Validated query parameters for computing per-period country averages."""
+
+    indicator_code: str
+    country_iso3s: tuple[str, ...]
+    first_year: int
+    last_year: int
+    period_years: int
+    sex: Sex = Sex.BOTH
+
+
+@dataclass(frozen=True, slots=True)
+class Period:
+    """A contiguous range of years [start, end] with a display label."""
+
+    start: int
+    end: int
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodAverage:
+    """One aggregated country-period average row returned by the repository."""
+
+    country_iso3: str
+    country_name: str
+    period_start: int
+    average: Decimal | None
+    observation_count: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class CountrySeries:
+    """Ordered per-period averages for one country aligned to report periods."""
+
+    country_iso3: str
+    country_name: str
+    averages: list[Decimal | None]
+
+
+@dataclass(frozen=True, slots=True)
+class PeriodAverageReport:
+    """Complete per-period averages report for an indicator across countries."""
+
+    indicator: IndicatorInfo
+    periods: list[Period]
+    series: list[CountrySeries]
+
+

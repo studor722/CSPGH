@@ -178,8 +178,13 @@ class ObservationRepository:
         regions = self._session.scalars(stmt).all()
         return [Option(value=region, label=region) for region in regions]
 
-    def list_country_records(self) -> list[CountrySummary]:
-        stmt = select(Country).order_by(Country.name, Country.iso3)
+    def list_country_records(
+        self, region: str | None = None
+    ) -> list[CountrySummary]:
+        stmt = select(Country)
+        if region is not None:
+            stmt = stmt.where(Country.region == region)
+        stmt = stmt.order_by(Country.name, Country.iso3)
         rows = self._session.scalars(stmt).all()
         return [
             CountrySummary(
